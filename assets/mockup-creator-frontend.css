@@ -1,0 +1,227 @@
+/* GENEL ORTA KOLON */
+.mockup-page-container {
+    width: 70%;
+    margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+    .mockup-page-container {
+        width: 90%;
+    }
+}
+
+@media (max-width: 768px) {
+    .mockup-page-container {
+        width: 100%;
+    }
+}
+
+/* MOCKUP GRID YAPISI */
+.mockup-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
+}
+
+/* ROW HER ZAMAN YATAY VE MERKEZDE */
+.mockup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+}
+
+@media (max-width: 1024px) {
+    .mockup-row {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+/* SOL TARAF */
+.mockup-left {
+    flex: 1;
+}
+
+/* SAĞ TARAF */
+.mockup-right {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+}
+
+/* ÜST–ALT PADDING */
+.mockup-preview-wrapper {
+    width: 100%;
+    border: 2px solid #e0e0e0;
+    background: #f2f2f2;
+    border-radius: 20px;
+    padding: 10px 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 380px;
+    box-sizing: border-box;
+}
+
+/* DROPDOWN + OK BUTONLARI */
+.mockup-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.mockup-input-group select {
+    flex-grow: 1;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid #333;
+    font-size: 18px;
+}
+
+/* OK BUTONLARI */
+.frontend-nav-btn {
+    background: #1e3a61;
+    color: white;
+    border-radius: 12px;
+    padding: 10px 14px;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.frontend-nav-btn:hover {
+    background: #305789;
+}
+
+/* GÖRSEL KUTUSU */
+.mockup-preview-box {
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+}
+
+.preview-img {
+    max-width: 75% !important;
+    max-height: 75% !important;
+    object-fit: contain !important;
+    display: block !important;
+    margin: auto !important;
+}
+
+/* Placeholder */
+.preview-placeholder {
+    opacity: 0.5;
+    font-size: 20px !important;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* "Ürün Görseli Oluştur" Butonu */
+.generate-row {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.generate-btn {
+    background: #d32238 !important;
+    padding: 16px 28px;
+    border-radius: 16px;
+    font-size: 20px !important;
+    color: white !important;
+    border: none;
+}
+
+.generate-btn:hover {
+    background: #a91026 !important;
+}
+
+/* ÖN İZLEME ALANI */
+#frontend-preview-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 20px !important;
+    background: #efefef;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+#frontend-preview-image {
+    width: 60%;
+    height: auto;
+}
+
+/* -------------------------------------------
+   ÜÇ BUTONUN (İndir – Link Kopyala – Ürün Oluştur)
+   TEK TİP TASARIMA GETİRİLMİŞ HALİ
+-------------------------------------------- */
+
+.frontend-output-controls {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Ortak stil – tamamen eşit */
+.frontend-output-controls .button,
+.frontend-output-controls .frontend-action {
+    padding: 14px 26px;
+    border-radius: 14px;
+    font-size: 18px;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s ease;
+    font-weight: 600;
+}
+
+/* İndir (kırmızı) */
+#frontend-download {
+    background: #d32238 !important;
+    color: white !important;
+}
+#frontend-download:hover {
+    background: #a91026 !important;
+}
+
+/* Link Kopyala (siyah) */
+#frontend-copy-link {
+    background: #111 !important;
+    color: white !important;
+}
+#frontend-copy-link:hover {
+    background: #000 !important;
+}
+
+/* Ürün Oluştur (yeşil) */
+.frontend-action.success {
+    background: #27ae60 !important;
+    color: white !important;
+}
+.frontend-action.success:hover {
+    background: #2ecc71 !important;
+}
+/* ÜRÜN OLUŞTUR ANİMASYONU */
+#frontend-create-product.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+#frontend-create-product.loading::after {
+    content: " ...";
+    animation: dots 1s infinite;
+}
+
+@keyframes dots {
+    0% { content: " ..."; }
+    33% { content: " ....."; }
+    66% { content: " ......"; }
+    100% { content: " ..."; }
+}

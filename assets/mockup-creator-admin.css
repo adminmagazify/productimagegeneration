@@ -1,0 +1,114 @@
+.mockup-admin-settings {
+    max-width: 800px;
+    margin-top: 20px;
+}
+
+.drive-settings {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #ccd0d4;
+    margin-bottom: 30px;
+}
+
+.drive-settings h3 {
+    margin-top: 0;
+    color: #23282d;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.api-key-group,
+.folder-group {
+    margin-bottom: 20px;
+}
+
+.api-key-group label,
+.folder-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #23282d;
+}
+
+.regular-text {
+    width: 100%;
+    max-width: 500px;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.regular-text:focus {
+    border-color: #0073aa;
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+.folder-ids {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.drive-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 25px;
+}
+
+#drive-status {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    min-height: 20px;
+}
+
+#drive-status p {
+    margin: 8px 0;
+    font-size: 14px;
+}
+
+.shortcode-info {
+    background: white;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #ccd0d4;
+}
+
+.shortcode-info h3 {
+    margin-top: 0;
+    color: #23282d;
+}
+
+.shortcode-info code {
+    background: #f1f1f1;
+    padding: 10px 15px;
+    border-radius: 4px;
+    font-size: 16px;
+    display: inline-block;
+    margin: 10px 0;
+}
+
+.shortcode-info p {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Responsive admin */
+@media (max-width: 768px) {
+    .folder-ids {
+        grid-template-columns: 1fr;
+    }
+    
+    .drive-buttons {
+        flex-direction: column;
+    }
+    
+    .drive-buttons .button {
+        width: 100%;
+        text-align: center;
+    }
+}
