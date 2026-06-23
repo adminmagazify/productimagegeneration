@@ -186,6 +186,43 @@ class PigCentralSync {
         return (int) $created['term_id'];
     }
 
+    /**
+     * REST: merkezin profilleri push ettiği endpoint.
+     * URL: POST /wp-json/pig/v1/mockup-profiles
+     * Auth: X-Central-Key + X-Central-Secret = wpd_api_key + wpd_api_secret (wp-distributor ile ortak).
+     */
+    public static function register_rest_routes() {
+        register_rest_route('pig/v1', '/mockup-profiles', [
+            'methods'             => 'POST',
+            'callback'            => [__CLASS__, 'handle_push'],
+            'permission_callback' => [__CLASS__, 'check_central_auth'],
+        ]);
+    }
+
+    public static function check_central_auth($request) {
+        $key    = (string) $request->get_header('x-central-key');
+        $secret = (string) $request->get_header('x-central-secret');
+        $stored_key    = trim(get_option('wpd_api_key', ''));
+        $stored_secret = trim(get_option('wpd_api_secret', ''));
+        if (!$stored_key || !$stored_secret) {
+            return false;
+        }
+        return hash_equals($stored_key, $key) && hash_equals($stored_secret, $secret);
+    }
+
+    /** Merkezden gelen profilleri yerel option'a yazar (term eşlemesiyle). */
+    public static function handle_push($request) {
+        $body = $request->get_json_params();
+        $incoming = (is_array($body) && isset($body['profiles']) && is_array($body['profiles'])) ? $body['profiles'] : [];
+        $profiles = [];
+        foreach ($incoming as $row) {
+            $key = isset($row['id']) ? 'central_' . intval($row['id']) : uniqid('profile_');
+            $profiles[$key] = self::from_named($row);
+        }
+        update_option(self::OPTION, $profiles);
+        return rest_ensure_response(['applied' => count($profiles)]);
+    }
+
     /** Beden tablosunu (ts_size_chart) başlığıyla bulur. */
     private static function find_size_chart($name) {
         $name = trim($name);

@@ -2,7 +2,7 @@
 /*
 Plugin Name: Product Image Generation
 Description: CDN Etegre Ürün Görsel Oluşturma Eklentisi
-Version: 6.0
+Version: 6.1
 Author: Magazac
 GitHub Plugin URI: https://github.com/adminmagazify/productimagegeneration
 */
@@ -86,6 +86,9 @@ class PigCreator {
 
         // AJAX işlemleri
         $this->register_ajax_handlers();
+
+        // Merkezin profilleri push ettiği REST endpoint (panelden tek tuşla gönderim)
+        add_action('rest_api_init', ['PigCentralSync', 'register_rest_routes']);
 
         // Aktivasyon/deaktivasyon
         register_activation_hook(__FILE__, array($this->drive_automation, 'activate_automation'));
