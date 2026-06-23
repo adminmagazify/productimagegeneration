@@ -9,8 +9,8 @@ class PigAdminInterface {
     
     public function add_admin_menu() {
         add_menu_page(
-            'Mockup Creator',
-            'Mockup Creator',
+            'PoD Ürün Oluşturma',
+            'PoD Ürün Oluşturma',
             'manage_options',
             'mockup-creator',
             array($this, 'admin_page'),
@@ -85,7 +85,7 @@ class PigAdminInterface {
         $logs = get_option('mockup_drive_logs', []);
         ?>
         <div class="wrap">
-            <h1>Mockup Creator</h1>
+            <h1>PoD Ürün Oluşturma</h1>
             
             <!-- Otomatik Drive Kontrol Sistemi -->
             <div class="drive-automation-status">
