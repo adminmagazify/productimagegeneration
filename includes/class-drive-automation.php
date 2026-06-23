@@ -1,5 +1,5 @@
 <?php
-class MockupDriveAutomation {
+class PigDriveAutomation {
     
     public function __construct() {
         add_action('init', array($this, 'init_drive_automation'));
@@ -264,10 +264,10 @@ function mc_stable_permalink($product_id) {
  * Ürün Oluşturma (AJAX)
  * ------------------------------------------
  */
-add_action('wp_ajax_mockup_create_wc_product', 'mockup_create_wc_product');
-add_action('wp_ajax_nopriv_mockup_create_wc_product', 'mockup_create_wc_product');
+add_action('wp_ajax_mockup_create_wc_product', 'pig_create_wc_product');
+add_action('wp_ajax_nopriv_mockup_create_wc_product', 'pig_create_wc_product');
 
-function mockup_create_wc_product() {
+function pig_create_wc_product() {
 
     check_ajax_referer('mockup_nonce', 'nonce');
 
@@ -580,17 +580,15 @@ function mockup_create_wc_product() {
         'post_status'    => 'inherit'
     ];
 
+    // Attachment'ı oluştur (thumbnail/metadata ÜRETME — onu yanıttan sonra yapacağız)
     $attach_id = wp_insert_attachment($attachment, $image_path, $product_id);
-
-    require_once(ABSPATH . 'wp-admin/includes/image.php');
-    $attach_data = wp_generate_attachment_metadata($attach_id, $image_path);
-    wp_update_attachment_metadata($attach_id, $attach_data);
-
     $product->set_image_id($attach_id);
 
     // =====================================================
-    // ARKA GÖRSEL → GALERİ
+    // ARKA GÖRSEL → GALERİ (metadata yine sonra üretilir)
     // =====================================================
+    $back_attach_id = 0;
+    $back_path      = '';
     if (!empty($back_image_url)) {
         $back_path = str_replace($upload_dir['baseurl'], $upload_dir['basedir'], $back_image_url);
 
@@ -602,9 +600,6 @@ function mockup_create_wc_product() {
                 'post_status'    => 'inherit'
             ];
             $back_attach_id = wp_insert_attachment($back_attachment, $back_path, $product_id);
-            $back_attach_data = wp_generate_attachment_metadata($back_attach_id, $back_path);
-            wp_update_attachment_metadata($back_attach_id, $back_attach_data);
-
             $product->set_gallery_image_ids([$back_attach_id]);
         }
     }
@@ -632,8 +627,36 @@ function mockup_create_wc_product() {
     // Sabit URL
     $stable_url = mc_stable_permalink($product_id);
 
-    wp_send_json_success([
-        'id'  => $product_id,
-        'url' => $stable_url
+    // =====================================================
+    // YANITI HEMEN GÖNDER → operatör beklemesin
+    // Ağır thumbnail üretimi bağlantı kapandıktan SONRA yapılır.
+    // =====================================================
+    @header('Content-Type: application/json; charset=' . get_option('blog_charset'));
+    echo wp_json_encode([
+        'success' => true,
+        'data'    => ['id' => $product_id, 'url' => $stable_url],
     ]);
+
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();           // PHP-FPM
+    } elseif (function_exists('litespeed_finish_request')) {
+        litespeed_finish_request();         // LiteSpeed
+    } else {
+        while (ob_get_level() > 0) { @ob_end_flush(); }
+        @flush();
+    }
+
+    // --- İstemci artık beklemiyor: thumbnail boyutlarını burada üret ---
+    if (!function_exists('wp_generate_attachment_metadata')) {
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+    }
+    $meta = wp_generate_attachment_metadata($attach_id, $image_path);
+    wp_update_attachment_metadata($attach_id, $meta);
+
+    if ($back_attach_id && $back_path && file_exists($back_path)) {
+        $bmeta = wp_generate_attachment_metadata($back_attach_id, $back_path);
+        wp_update_attachment_metadata($back_attach_id, $bmeta);
+    }
+
+    exit;
 }

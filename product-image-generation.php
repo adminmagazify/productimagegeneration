@@ -2,29 +2,37 @@
 /*
 Plugin Name: Product Image Generation
 Description: CDN Etegre Ürün Görsel Oluşturma Eklentisi
-Version: 5.8
+Version: 6.0
 Author: Magazac
 GitHub Plugin URI: https://github.com/adminmagazify/productimagegeneration
 */
 
-require plugin_dir_path(__FILE__) . 'plugin-update-checker-master/plugin-update-checker.php';
-
-$updateChecker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-    'https://github.com/adminmagazify/productimagegeneration',
-    __FILE__,
-    'productimagegeneration'
-);
-
-$updateChecker->setBranch('main');
-
 /*
- * GitHub API hız limiti (403) sorununu önlemek için kimlik doğrulama.
- * Token public repoya YAZILMAZ; wp-config.php içinde tanımlanır:
- *     define('MOCKUP_GH_TOKEN', 'github_pat_xxx');
- * Token sadece "public repo / contents: read" iznine sahip olmalı.
+ * GitHub üzerinden otomatik güncelleme (plugin-update-checker).
+ * Savunmacı yükleme: dosyalar eksik/bozuksa bile eklenti ÇÖKMEZ.
  */
-if (defined('MOCKUP_GH_TOKEN') && MOCKUP_GH_TOKEN) {
-    $updateChecker->setAuthentication(MOCKUP_GH_TOKEN);
+$puc_dir  = plugin_dir_path(__FILE__) . 'plugin-update-checker-master/';
+$puc_file = $puc_dir . 'plugin-update-checker.php';
+$puc_auto = $puc_dir . 'Puc/v5p6/Autoloader.php';
+if (file_exists($puc_file) && file_exists($puc_auto)) {
+    require_once $puc_file;
+
+    if (class_exists('YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory')) {
+        try {
+            $updateChecker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+                'https://github.com/adminmagazify/productimagegeneration',
+                __FILE__,
+                'productimagegeneration'
+            );
+            $updateChecker->setBranch('main');
+
+            if (defined('MOCKUP_GH_TOKEN') && MOCKUP_GH_TOKEN) {
+                $updateChecker->setAuthentication(MOCKUP_GH_TOKEN);
+            }
+        } catch (\Throwable $e) {
+            // Güncelleme denetleyicisi başlatılamadı; eklenti yine de çalışır.
+        }
+    }
 }
 
 // Güvenlik kontrolü
@@ -37,15 +45,18 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-drive-automation.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-image-processor.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-preset-manager.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-library-manager.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-r2-storage.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-frontend-handler.php';
+require_once plugin_dir_path(__FILE__) . 'includes/class-central-sync.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-admin-interface.php';
 
-class MockupCreator {
+class PigCreator {
 
     private $drive_automation;
     private $image_processor;
     private $preset_manager;
     private $library_manager;
+    private $r2_storage;
     private $frontend_handler;
     private $admin_interface;
 
@@ -55,12 +66,13 @@ class MockupCreator {
     }
 
     private function init_components() {
-        $this->drive_automation = new MockupDriveAutomation();
-        $this->image_processor = new MockupImageProcessor();
-        $this->preset_manager = new MockupPresetManager();
-        $this->library_manager = new MockupLibraryManager();
-        $this->frontend_handler = new MockupFrontendHandler($this->preset_manager);
-        $this->admin_interface = new MockupAdminInterface($this->preset_manager);
+        $this->drive_automation = new PigDriveAutomation();
+        $this->image_processor = new PigImageProcessor();
+        $this->preset_manager = new PigPresetManager();
+        $this->library_manager = new PigLibraryManager();
+        $this->r2_storage = new PigR2Storage();
+        $this->frontend_handler = new PigFrontendHandler($this->preset_manager);
+        $this->admin_interface = new PigAdminInterface($this->preset_manager);
     }
 
     private function register_hooks() {
@@ -101,6 +113,16 @@ class MockupCreator {
 
             // Ön/arka kompozit üretimi
             'generate_mockup_v2'      => array($this->image_processor, 'generate_mockup_v2'),
+
+            // Cloudflare R2 kaynakları
+            'get_r2_mockups'          => array($this->r2_storage, 'ajax_get_mockups'),
+            'get_r2_collections'      => array($this->r2_storage, 'ajax_get_collections'),
+            'get_r2_designs'          => array($this->r2_storage, 'ajax_get_designs'),
+            'test_r2_connection'      => array($this->r2_storage, 'ajax_test_connection'),
+            'generate_mockup_r2'      => array($this->image_processor, 'generate_mockup_r2'),
+
+            // R2 görsel proxy (görselleri site üzerinden servis eder — DNS/public URL gerekmez)
+            'pig_r2_img'              => array($this->r2_storage, 'ajax_image'),
         );
 
         foreach ($ajax_actions as $action => $callback) {
@@ -110,4 +132,4 @@ class MockupCreator {
     }
 }
 
-new MockupCreator();
+new PigCreator();

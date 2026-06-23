@@ -6,7 +6,7 @@
 
     function cleanName(name) {
         if (!name) return "";
-        return name.replace(/\.png$/i, "").replace(/-/g, " ").trim();
+        return name.replace(/\.[^.]+$/i, "").replace(/-/g, " ").trim();
     }
 
     function driveImage(id) {
@@ -21,6 +21,14 @@
         if (!name) return false;
         const base = name.replace(/\.[^.]+$/, "").toLowerCase();
         return base.replace(/[^a-z]/g, "").indexOf("preview") !== -1;
+    }
+
+    // R2 proxy URL'ine boyut ekler (önizlemeler tam PNG yerine küçültülmüş gelsin → hız).
+    // CDN/public URL kullanılıyorsa dokunmaz.
+    function r2Thumb(url, w) {
+        if (!url) return "";
+        if (url.indexOf("pig_r2_img") === -1) return url;
+        return url + (url.indexOf("?") >= 0 ? "&" : "?") + "w=" + w;
     }
 
     function setPreviewImage(selector, url, placeholder) {
@@ -71,6 +79,82 @@
     let collections = [];
     let designs = {};
     let presets = {};
+    let lastBackUrl = "";   // son üretilen arka görselin URL'i (ürün galerisi için)
+
+    /* --------------------------------------
+       RESİMLİ ÖZEL DROPDOWN
+       Native <select> gizlenir ama çalışmaya devam eder (val/change/nav korunur).
+       getImg(value) -> o seçeneğin thumbnail URL'i (yoksa "").
+    -------------------------------------- */
+    function createImageDropdown(selectId, getImg) {
+        const $select = $('#' + selectId);
+        if (!$select.length || $select.data('pigdd')) return null;
+
+        $select.addClass('pig-dd-native');
+        const $wrap = $('<div class="pig-dd"></div>');
+        const $sel  = $('<div class="pig-dd-selected"><img class="pig-dd-thumb" alt=""><span class="pig-dd-label"></span><span class="pig-dd-caret">▾</span></div>');
+        const $list = $('<div class="pig-dd-list"></div>');
+        $wrap.append($sel, $list);
+        $select.after($wrap);
+        $select.data('pigdd', true);
+
+        // Proxy URL'ine küçük boyut parametresi ekle (tam PNG yerine ~90px thumbnail)
+        function thumb(u) { return u ? (u + (u.indexOf('?') >= 0 ? '&' : '?') + 'w=90') : ''; }
+
+        function syncSelected() {
+            const val  = $select.val();
+            const text = $select.find('option:selected').text();
+            const img  = val ? (getImg(val) || '') : '';
+            $sel.find('.pig-dd-label').text(text);
+            const $t = $sel.find('.pig-dd-thumb');
+            if (img) { $t.attr('src', thumb(img)).show(); } else { $t.removeAttr('src').hide(); }
+        }
+
+        function render() {
+            $list.empty();
+            $select.find('option').each(function () {
+                const val  = $(this).val();
+                const text = $(this).text();
+                const img  = val ? (getImg(val) || '') : '';
+                const $item = $('<div class="pig-dd-item"></div>');
+                const $img  = $('<img class="pig-dd-thumb" alt="" loading="lazy">');
+                // src HENÜZ atanmaz; dropdown açılınca yüklenir (sayfa açılışı hızlı kalsın)
+                if (img) { $img.attr('data-src', thumb(img)); } else { $img.css('visibility', 'hidden'); }
+                $item.append($img, $('<span class="pig-dd-label"></span>').text(text));
+                $item.on('click', function () {
+                    $select.val(val).trigger('change');
+                    $wrap.removeClass('open');
+                });
+                $list.append($item);
+            });
+            syncSelected();
+        }
+
+        // Liste görselleri yalnızca dropdown AÇILINCA yüklenir; lazy ile de
+        // listede sadece görünür olanlar çekilir (kaydırınca gerisi gelir).
+        function loadListImages() {
+            $list.find('img.pig-dd-thumb[data-src]').each(function () {
+                this.src = this.getAttribute('data-src');
+                this.removeAttribute('data-src');
+            });
+        }
+
+        $sel.on('click', function (e) {
+            e.stopPropagation();
+            $('.pig-dd').not($wrap).removeClass('open');
+            $wrap.toggleClass('open');
+            if ($wrap.hasClass('open')) { loadListImages(); }
+        });
+        $(document).on('click', function () { $wrap.removeClass('open'); });
+        $select.on('change', syncSelected);
+
+        return { render: render, sync: syncSelected };
+    }
+
+    // Thumbnail SADECE Ürün dropdown'ında. Koleksiyon/Tasarım normal (resimsiz) kalır → hız.
+    const ddMockup     = createImageDropdown('frontend-mockup-select', v => { const f = mockups.find(m => m.id === v); return f ? f.url : ''; });
+    const ddCollection = null;
+    const ddDesign     = null;
 
     /* --------------------------------------
     İLK YÜKLEMEDE DEFAULT GÖRSELLERİ GÖSTER
@@ -113,99 +197,87 @@
 
     function loadMockups() {
         return $.post(mockup_ajax.ajax_url, {
-            action: "get_drive_files",
-            nonce: mockup_ajax.nonce,
-            api_key: mockup_ajax.api_key,
-            folder_id: mockup_ajax.mockup_folder_id
+            action: "get_r2_mockups",
+            nonce: mockup_ajax.nonce
         }).done(response => {
             if (response.success) {
 
-                mockups = response.data;
+                mockups = response.data || [];
 
-                // 🔥 MOCKUP'LARI ALFABETİK SIRALA
+                // Alfabetik sırala
                 mockups.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
                 const select = $("#frontend-mockup-select");
                 select.empty().append(`<option value="">Ürün seçin</option>`);
 
                 mockups.forEach(file => {
-                    const cleanName = file.name
-                        .replace(/\.png$/i, "")
-                        .replace(/-/g, " ")
-                        .trim();
-
-                    // 🔥 Doğru: value = file.id
                     select.append(
-                        `<option value="${file.id}">${cleanName}</option>`
+                        `<option value="${file.id}">${cleanName(file.name)}</option>`
                     );
                 });
+                if (ddMockup) ddMockup.render();
+            } else {
+                console.error("R2 ürün listesi alınamadı:", response.data);
             }
         });
     }
 
     function loadCollections() {
         return $.post(mockup_ajax.ajax_url, {
-            action: "get_drive_files",
-            nonce: mockup_ajax.nonce,
-            api_key: mockup_ajax.api_key,
-            folder_id: mockup_ajax.koleksiyon_folder_id
+            action: "get_r2_collections",
+            nonce: mockup_ajax.nonce
         }).done(response => {
             if (response.success) {
 
-                // 🔥 SADECE KLASÖRLER
-                collections = response.data.filter(item =>
-                    item.mimeType === "application/vnd.google-apps.folder"
-                );
+                collections = response.data || [];
 
-                // 🔥 ALFABETİK SIRALA
+                // Alfabetik sırala
                 collections.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
                 const select = $("#frontend-collection-select");
                 select.empty().append(`<option value="">Koleksiyon seçin</option>`);
 
-                // 🔥 SADECE KLASÖR ADLARINI EKLE
-                collections.forEach(folder => {
+                collections.forEach(col => {
                     select.append(
-                        `<option value="${folder.id}">${folder.name}</option>`
+                        `<option value="${col.id}">${col.name}</option>`
                     );
                 });
+                if (ddCollection) ddCollection.render();
+            } else {
+                console.error("R2 koleksiyon listesi alınamadı:", response.data);
             }
         });
     }
 
     function loadDesigns(collectionId) {
         return $.post(mockup_ajax.ajax_url, {
-            action: "get_drive_files",
+            action: "get_r2_designs",
             nonce: mockup_ajax.nonce,
-            api_key: mockup_ajax.api_key,
-            folder_id: collectionId
+            collection_id: collectionId
         }).done(response => {
             if (response.success) {
-                designs = response.data || [];
+                designs = response.data.designs || [];
 
-                // 🔥 TASARIMLARI ALFABETİK SIRALA (önizleme seçiminden önce)
-                designs.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
-
-                // Önizleme: özel "preview" dosyası varsa onu, yoksa ilk tasarımı göster
-                const previewFile = designs.find(d => isPreviewFile(d.name));
-                const firstDesign = designs.find(d => !isPreviewFile(d.name));
-                const previewSource = previewFile || firstDesign;
-
-                if (previewSource) {
-                    setPreviewImage("#collection-preview-image", driveImage(previewSource.id), "#collection-placeholder");
-                } else {
-                    setPreviewImage("#collection-preview-image", "", "#collection-placeholder");
-                }
+                // Önizleme: server "preview" dosyasını verir, yoksa ilk tasarım
+                const previewUrl = response.data.preview_url ||
+                    (designs[0] ? designs[0].url : "");
+                setPreviewImage("#collection-preview-image", r2Thumb(previewUrl, 500), "#collection-placeholder");
 
                 const select = $("#frontend-design-select");
                 select.empty().append(`<option value="">Tasarım seçin</option>`);
                 designs.forEach(des => {
-
-                    // Önizleme dosyası tasarım listesinde görünmesin
-                    if (isPreviewFile(des.name)) return;
-
                     select.append(`<option value="${des.id}">${cleanName(des.name)}</option>`);
                 });
+                if (ddDesign) ddDesign.render();
+
+                // Arka tasarım dropdown'ı da aynı tasarımlarla dolsun
+                const backSelect = $("#frontend-back-design-select");
+                backSelect.empty().append(`<option value="">Arka tasarım seçin (opsiyonel)</option>`);
+                designs.forEach(des => {
+                    backSelect.append(`<option value="${des.id}">${cleanName(des.name)}</option>`);
+                });
+            } else {
+                console.error("R2 tasarım listesi alınamadı:", response.data);
             }
         });
     }
@@ -232,8 +304,8 @@
     $("#frontend-mockup-select").on("change", function () {
         const id = $(this).val();
         const file = mockups.find(m => m.id === id);
-        const url = file ? driveImage(file.id) : "";
-        setPreviewImage("#selected-mockup-thumbnail", url, "#mockup-placeholder");
+        const url = file ? file.url : "";
+        setPreviewImage("#selected-mockup-thumbnail", r2Thumb(url, 500), "#mockup-placeholder");
     });
 
     $("#frontend-collection-select").on("change", function () {
@@ -259,8 +331,15 @@
     $("#frontend-design-select").on("change", function () {
         const id = $(this).val();
         const file = designs.find(d => d.id === id);
-        const url = file ? driveImage(file.id) : "";
-        setPreviewImage("#selected-design-thumbnail", url, "#design-placeholder");
+        const url = file ? file.url : "";
+        setPreviewImage("#selected-design-thumbnail", r2Thumb(url, 500), "#design-placeholder");
+    });
+
+    $("#frontend-back-design-select").on("change", function () {
+        const id = $(this).val();
+        const file = designs.find(d => d.id === id);
+        const url = file ? file.url : "";
+        setPreviewImage("#selected-back-design-thumbnail", r2Thumb(url, 500), "#back-design-placeholder");
     });
 
     $("#frontend-preset-select").on("change", function () {
@@ -292,16 +371,21 @@
         $btn.find('.btn-text').text('Ürün Görseli Hazırlanıyor...');
 
         const preset = presets[presetId];
+        const mockupFile = mockups.find(m => m.id === mockupId);
+        const designFile = designs.find(d => d.id === designId);
 
         $.post(mockup_ajax.ajax_url, {
-            action: "generate_mockup",
+            action: "generate_mockup_r2",
             nonce: mockup_ajax.nonce,
-            mockup_id: mockupId,
-            design_id: designId,
+            mockup_key: mockupId,
+            design_key: designId,
+            back_design_key: $("#frontend-back-design-select").val() || "",
+            mockup_name: mockupFile ? mockupFile.name : "mockup",
+            design_name: designFile ? designFile.name : "design",
             width_percent: preset.width,
             left_percent: preset.left,
             top_percent: preset.top,
-            preset_code: preset.code.toLowerCase()
+            preset_code: preset.code ? preset.code.toLowerCase() : ""
         }).done(response => {
 
             $btn.removeClass("loading").prop("disabled", false);
@@ -316,8 +400,17 @@
 
             $("#frontend-preview-image")
                 .attr("src", finalURL)
-                .css("width", "60%")
                 .show();
+
+            // Arka görsel (varsa) göster + ürün galerisi için sakla
+            lastBackUrl = response.data.back_url || "";
+            if (lastBackUrl) {
+                $("#frontend-preview-image-back")
+                    .attr("src", lastBackUrl)
+                    .show();
+            } else {
+                $("#frontend-preview-image-back").hide();
+            }
 
             $(".frontend-output-controls").show();
 
@@ -391,7 +484,8 @@
             data: {
                 action: "mockup_create_wc_product",
                 nonce: mockup_ajax.nonce,
-                image_url: previewImg,   // 🔥 BASE64 YOK — SADECE URL
+                image_url: previewImg,        // ön görsel (ana)
+                back_image_url: lastBackUrl,  // arka görsel (galeri) — varsa
                 product_type: productType
             },
             success: function (response) {

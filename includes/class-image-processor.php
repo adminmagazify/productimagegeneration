@@ -1,5 +1,5 @@
 <?php
-class MockupImageProcessor {
+class PigImageProcessor {
     
     public function generate_mockup() {
         check_ajax_referer('mockup_nonce', 'nonce');
@@ -56,6 +56,105 @@ class MockupImageProcessor {
     }
     
     /* =========================================================
+     *  CLOUDFLARE R2 TABANLI ÜRETİM (FRONTEND)
+     *  Görseller R2 public URL'lerinden indirilip birleştirilir.
+     * ========================================================= */
+    public function generate_mockup_r2() {
+        check_ajax_referer('mockup_nonce', 'nonce');
+
+        $mockup_key    = isset($_POST['mockup_key']) ? sanitize_text_field(wp_unslash($_POST['mockup_key'])) : '';
+        $design_key    = isset($_POST['design_key']) ? sanitize_text_field(wp_unslash($_POST['design_key'])) : '';
+        $width_percent = intval($_POST['width_percent'] ?? 0);
+        $left_percent  = intval($_POST['left_percent'] ?? 0);
+        $top_percent   = intval($_POST['top_percent'] ?? 0);
+        $preset_code   = isset($_POST['preset_code']) ? sanitize_text_field(wp_unslash($_POST['preset_code'])) : '';
+        $mockup_name   = isset($_POST['mockup_name']) ? sanitize_text_field(wp_unslash($_POST['mockup_name'])) : 'mockup';
+        $design_name   = isset($_POST['design_name']) ? sanitize_text_field(wp_unslash($_POST['design_name'])) : 'design';
+
+        if (!$mockup_key || !$design_key) {
+            wp_send_json_error('Eksik parametre: görsel anahtarları');
+        }
+
+        // Görselleri R2'den S3 imzalı GET ile indir (public URL gerekmez)
+        $mockup_bytes = PigR2Storage::get_object($mockup_key);
+        if (is_wp_error($mockup_bytes)) {
+            wp_send_json_error('Mockup indirilemedi: ' . $mockup_bytes->get_error_message());
+        }
+        $design_bytes = PigR2Storage::get_object($design_key);
+        if (is_wp_error($design_bytes)) {
+            wp_send_json_error('Tasarım indirilemedi: ' . $design_bytes->get_error_message());
+        }
+
+        // Geçici dosyalara yazıp yol tabanlı kompozit üret
+        $up      = wp_upload_dir();
+        $tmp_dir = trailingslashit($up['basedir']) . 'pig-tmp';
+        if (!file_exists($tmp_dir)) {
+            wp_mkdir_p($tmp_dir);
+        }
+        $tmp_mockup = $tmp_dir . '/m_' . uniqid() . '.img';
+        $tmp_design = $tmp_dir . '/d_' . uniqid() . '.img';
+        file_put_contents($tmp_mockup, $mockup_bytes);
+        file_put_contents($tmp_design, $design_bytes);
+
+        $result = $this->composite_from_paths(
+            $tmp_mockup,
+            $tmp_design,
+            $width_percent,
+            $left_percent,
+            $top_percent,
+            $mockup_name,
+            $design_name,
+            $preset_code
+        );
+
+        @unlink($tmp_mockup);
+        @unlink($tmp_design);
+
+        if (!$result['success']) {
+            wp_send_json_error($result['message']);
+        }
+
+        $front_url = $result['url'];
+        $back_url  = '';
+
+        // --- ARKA (opsiyonel): arka tasarım seçildiyse "-arka" mockup'ına bindir ---
+        $back_design_key = isset($_POST['back_design_key']) ? sanitize_text_field(wp_unslash($_POST['back_design_key'])) : '';
+        if ($back_design_key !== '') {
+            $back_mockup_key   = preg_replace('/(\.[^.]+)$/', '-arka$1', $mockup_key);
+            $back_mockup_bytes = PigR2Storage::get_object($back_mockup_key);
+            $back_design_bytes = PigR2Storage::get_object($back_design_key);
+
+            if (!is_wp_error($back_mockup_bytes) && !is_wp_error($back_design_bytes)) {
+                $tmp_bm = $tmp_dir . '/bm_' . uniqid() . '.img';
+                $tmp_bd = $tmp_dir . '/bd_' . uniqid() . '.img';
+                file_put_contents($tmp_bm, $back_mockup_bytes);
+                file_put_contents($tmp_bd, $back_design_bytes);
+
+                $back = $this->composite_from_paths(
+                    $tmp_bm, $tmp_bd,
+                    $width_percent, $left_percent, $top_percent,
+                    $mockup_name, $design_name, $preset_code, 'arka'
+                );
+
+                @unlink($tmp_bm);
+                @unlink($tmp_bd);
+
+                if ($back['success']) {
+                    $back_url = $back['url'];
+                }
+            }
+        }
+
+        wp_send_json_success(array(
+            'url'         => $front_url,
+            'back_url'    => $back_url,
+            'message'     => 'Ürün görseli başarıyla oluşturuldu!',
+            'mockup_name' => $mockup_name,
+            'design_name' => $design_name,
+        ));
+    }
+
+    /* =========================================================
      *  YENİ: MEDYA KÜTÜPHANESİ TABANLI ÖN/ARKA ÜRETİM
      * ========================================================= */
     public function generate_mockup_v2() {
@@ -69,7 +168,7 @@ class MockupImageProcessor {
         $top_percent     = intval($_POST['top_percent'] ?? 0);
         $preset_code     = isset($_POST['preset_code']) ? sanitize_text_field($_POST['preset_code']) : '';
 
-        $items = MockupLibraryManager::get_items();
+        $items = PigLibraryManager::get_items();
         if (!isset($items[$mockup_id])) {
             wp_send_json_error('Mockup bulunamadı');
         }

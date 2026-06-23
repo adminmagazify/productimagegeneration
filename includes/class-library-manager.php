@@ -7,7 +7,7 @@
  *   mockup_library_items       => [ id => ['name','product_type','front_id','back_id'] ]
  *   mockup_library_collections => [ id => ['name','preview_id','design_ids'=>[...]] ]
  */
-class MockupLibraryManager {
+class PigLibraryManager {
 
     const OPT_ITEMS       = 'mockup_library_items';
     const OPT_COLLECTIONS = 'mockup_library_collections';

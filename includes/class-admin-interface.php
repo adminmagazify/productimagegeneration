@@ -1,5 +1,5 @@
 <?php
-class MockupAdminInterface {
+class PigAdminInterface {
     
     private $preset_manager;
     
@@ -432,16 +432,62 @@ class MockupAdminInterface {
 
     public function render_product_profiles_list() {
 
+        // Merkez senkronizasyon işlemleri (çıktıdan önce çalışmalı)
+        $sync_notice = null;
+        if (isset($_POST['mockup_sync_action']) && check_admin_referer('mockup_central_sync')) {
+            $action = sanitize_text_field($_POST['mockup_sync_action']);
+            if ($action === 'pull') {
+                $r = PigCentralSync::pull_from_central();
+                $sync_notice = $r['success']
+                    ? ['success', 'Merkezden çekildi: ' . intval($r['count']) . ' profil güncellendi.']
+                    : ['error', $r['message']];
+            } elseif ($action === 'import') {
+                $r = PigCentralSync::import_to_central();
+                $sync_notice = $r['success']
+                    ? ['success', 'Merkeze aktarıldı: ' . intval($r['imported']) . ' profil.']
+                    : ['error', $r['message']];
+            }
+        }
+
         $profiles = get_option('mockup_product_profiles', []);
 
         ?>
         <div class="wrap">
             <h1>Ürün Profilleri</h1>
 
-            <a href="<?php echo admin_url('admin.php?page=mockup-product-profiles-edit'); ?>" 
+            <?php if ($sync_notice): ?>
+                <div class="notice notice-<?php echo esc_attr($sync_notice[0]); ?> is-dismissible">
+                    <p><?php echo esc_html($sync_notice[1]); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <p class="description" style="margin:10px 0;">
+                Profiller merkez panelden (wp-central) yönetilir. <strong>Merkezden Çek</strong> ile en güncel profilleri bu siteye indirin.
+                İlk kurulumda mevcut profillerinizi kaybetmemek için önce <strong>Mevcut Profilleri Merkeze Aktar</strong>'ı kullanın.
+            </p>
+
+            <a href="<?php echo admin_url('admin.php?page=mockup-product-profiles-edit'); ?>"
             class="button button-primary">
                 Yeni Profil Ekle
             </a>
+
+            <form method="post" style="display:inline-block; margin-left:8px;">
+                <?php wp_nonce_field('mockup_central_sync'); ?>
+                <input type="hidden" name="mockup_sync_action" value="pull">
+                <button type="submit" class="button"
+                    onclick="return confirm('Merkezdeki profiller bu siteye çekilsin mi? Yerel profiller merkezdekiyle degistirilir.');">
+                    ⬇ Merkezden Çek
+                </button>
+            </form>
+
+            <form method="post" style="display:inline-block; margin-left:4px;">
+                <?php wp_nonce_field('mockup_central_sync'); ?>
+                <input type="hidden" name="mockup_sync_action" value="import">
+                <button type="submit" class="button"
+                    onclick="return confirm('Bu sitedeki mevcut profiller merkeze aktarilsin mi?');">
+                    ⬆ Mevcut Profilleri Merkeze Aktar
+                </button>
+            </form>
 
             <table class="widefat striped" style="margin-top:20px;">
                 <thead>

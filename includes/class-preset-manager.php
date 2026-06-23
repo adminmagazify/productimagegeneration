@@ -1,6 +1,6 @@
 <?php
 
-class MockupPresetManager {
+class PigPresetManager {
 
     public function __construct() {
         // AJAX action kayıtları mockup-creator.php içindeki register_ajax_handlers()

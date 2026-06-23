@@ -1,5 +1,5 @@
-﻿<?php
-class MockupFrontendHandler {
+<?php
+class PigFrontendHandler {
     
     private $preset_manager;
     
