@@ -269,12 +269,25 @@ class PigCentralSync {
                 }
                 $product->set_sale_price(($sale !== '' && $sale !== null) ? $sale : '');
                 $product->save();
+
+                // Mağaza/arşiv listesindeki fiyat da güncellensin diye cache temizle
+                // (tekil ürün sayfası canlı çeker; arşiv cache'lenmiş fiyatı gösterir).
+                if (function_exists('wc_delete_product_transients')) {
+                    wc_delete_product_transients($pid);
+                }
+                clean_post_cache($pid);
+
                 // Geriye dönük eşlenen ürüne kalıcı bağ ekle
                 if (!get_post_meta($pid, '_pig_product_type', true)) {
                     update_post_meta($pid, '_pig_product_type', $ptype);
                 }
                 $updated++;
             }
+        }
+
+        // Toplu fiyat değişti: ürün arşivi/fiyat-aralığı transient'lerini topluca tazele
+        if ($updated > 0 && function_exists('wc_delete_product_transients')) {
+            wc_delete_product_transients();
         }
         return $updated;
     }
