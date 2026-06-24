@@ -441,6 +441,11 @@ function pig_create_wc_product() {
 
     $product_id = $product->save();
 
+    // Profil bağı: bu ürün hangi profilden üretildi (fiyat senkronu için)
+    if ($product_id && $product_type) {
+        update_post_meta($product_id, '_pig_product_type', $product_type);
+    }
+
     /**
      * =====================================================
      *  APF — "Beden Seçimi" Alanını Otomatik Oluştur

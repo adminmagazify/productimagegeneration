@@ -84,7 +84,8 @@ class PigCentralSync {
             $profiles[$key] = self::from_named($row);
         }
         update_option(self::OPTION, $profiles);
-        return ['success' => true, 'count' => count($profiles)];
+        $priceUpdated = self::sync_product_prices($profiles);
+        return ['success' => true, 'count' => count($profiles), 'pricesUpdated' => $priceUpdated];
     }
 
     /** Yerel profil (term_id'li) → merkez formatı (isim bazlı). */
@@ -220,7 +221,8 @@ class PigCentralSync {
             $profiles[$key] = self::from_named($row);
         }
         update_option(self::OPTION, $profiles);
-        return rest_ensure_response(['applied' => count($profiles)]);
+        $priceUpdated = self::sync_product_prices($profiles);
+        return rest_ensure_response(['applied' => count($profiles), 'pricesUpdated' => $priceUpdated]);
     }
 
     /** Beden tablosunu (ts_size_chart) başlığıyla bulur. */
@@ -237,5 +239,65 @@ class PigCentralSync {
             'fields'      => 'ids',
         ]);
         return !empty($posts) ? (int) $posts[0] : 0;
+    }
+
+    /**
+     * Profillere ait mevcut WooCommerce ürünlerinin fiyatlarını profil fiyatıyla günceller.
+     * Eşleme: _pig_product_type meta'sı (üretilen ürünler) + SKU prefix (geriye dönük eski ürünler).
+     */
+    private static function sync_product_prices($profiles) {
+        if (!function_exists('wc_get_product')) {
+            return 0;
+        }
+        $updated = 0;
+        foreach ($profiles as $p) {
+            $ptype = isset($p['product_type']) ? trim((string) $p['product_type']) : '';
+            if ($ptype === '') {
+                continue;
+            }
+            $price  = isset($p['price']) ? (string) $p['price'] : '';
+            $sale   = isset($p['sale_price']) ? (string) $p['sale_price'] : '';
+            $prefix = isset($p['sku_prefix']) ? trim((string) $p['sku_prefix']) : '';
+
+            foreach (self::find_products_for_profile($ptype, $prefix) as $pid) {
+                $product = wc_get_product($pid);
+                if (!$product || $product->get_type() === 'variation') {
+                    continue;
+                }
+                if ($price !== '') {
+                    $product->set_regular_price($price);
+                }
+                $product->set_sale_price(($sale !== '' && $sale !== null) ? $sale : '');
+                $product->save();
+                // Geriye dönük eşlenen ürüne kalıcı bağ ekle
+                if (!get_post_meta($pid, '_pig_product_type', true)) {
+                    update_post_meta($pid, '_pig_product_type', $ptype);
+                }
+                $updated++;
+            }
+        }
+        return $updated;
+    }
+
+    /** Profile ait ürün ID'leri: önce _pig_product_type meta, sonra SKU prefix (geriye dönük). */
+    private static function find_products_for_profile($ptype, $prefix) {
+        $ids = get_posts([
+            'post_type'   => 'product',
+            'post_status' => 'any',
+            'numberposts' => -1,
+            'fields'      => 'ids',
+            'meta_key'    => '_pig_product_type',
+            'meta_value'  => $ptype,
+        ]);
+        if ($prefix !== '') {
+            global $wpdb;
+            $like = $wpdb->esc_like($prefix) . '%';
+            $bySku = $wpdb->get_col($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_sku' AND meta_value LIKE %s",
+                $like
+            ));
+            $ids = array_merge($ids, array_map('intval', (array) $bySku));
+        }
+        return array_values(array_unique(array_map('intval', $ids)));
     }
 }
