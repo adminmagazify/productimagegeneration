@@ -157,6 +157,55 @@
     const ddDesign     = null;
 
     /* --------------------------------------
+       KATEGORİ → ÜRÜN FİLTRESİ
+       Kategori panel profillerinden gelir; seçilince o kategorideki
+       profillerin product_type'larına sahip mockup'lar listelenir.
+    -------------------------------------- */
+    function getProfiles() {
+        return (typeof mockup_profiles !== "undefined" && mockup_profiles.profiles) ? mockup_profiles.profiles : {};
+    }
+
+    function renderProductOptions(list) {
+        const select = $("#frontend-mockup-select");
+        select.empty().append(`<option value="">Ürün seçin</option>`);
+        (list || []).forEach(file => {
+            select.append(`<option value="${file.id}">${cleanName(file.name)}</option>`);
+        });
+        if (ddMockup) ddMockup.render();
+    }
+
+    // Seçili kategorideki profillerin product_type'larına sahip mockup'lar (kategori boşsa hepsi).
+    function mockupsForCategory(catName) {
+        if (!catName) return mockups;
+        const profiles = getProfiles();
+        const types = [];
+        Object.keys(profiles).forEach(k => {
+            const p = profiles[k] || {};
+            const cats = p.category_names || [];
+            if (cats.indexOf(catName) !== -1 && p.product_type) {
+                types.push(String(p.product_type).toLowerCase());
+            }
+        });
+        return mockups.filter(m => types.indexOf(extractProductTypeFromFilename(m.name)) !== -1);
+    }
+
+    function initCategoryDropdown() {
+        const profiles = getProfiles();
+        const cats = [];
+        Object.keys(profiles).forEach(k => {
+            ((profiles[k] || {}).category_names || []).forEach(c => {
+                if (c && cats.indexOf(c) === -1) cats.push(c);
+            });
+        });
+        cats.sort((a, b) => a.localeCompare(b, 'tr'));
+        const $select = $("#frontend-category-select");
+        const current = $select.val();
+        $select.empty().append(`<option value="">Kategori seçin</option>`);
+        cats.forEach(c => $select.append(`<option value="${c}">${c}</option>`));
+        if (current) $select.val(current);
+    }
+
+    /* --------------------------------------
     İLK YÜKLEMEDE DEFAULT GÖRSELLERİ GÖSTER
     -------------------------------------- */
     if (typeof mockup_defaults !== "undefined") {
@@ -207,15 +256,9 @@
                 // Alfabetik sırala
                 mockups.sort((a, b) => a.name.localeCompare(b.name, 'tr'));
 
-                const select = $("#frontend-mockup-select");
-                select.empty().append(`<option value="">Ürün seçin</option>`);
-
-                mockups.forEach(file => {
-                    select.append(
-                        `<option value="${file.id}">${cleanName(file.name)}</option>`
-                    );
-                });
-                if (ddMockup) ddMockup.render();
+                // Kategori dropdown'unu profillerden doldur, ürünleri seçili kategoriye göre listele
+                initCategoryDropdown();
+                renderProductOptions(mockupsForCategory($("#frontend-category-select").val()));
             } else {
                 console.error("R2 ürün listesi alınamadı:", response.data);
             }
@@ -301,6 +344,13 @@
     /* --------------------------------------
        SEÇİMLER
     -------------------------------------- */
+    // Kategori seçilince ürünleri o kategoriye göre filtrele
+    $("#frontend-category-select").on("change", function () {
+        const cat = $(this).val();
+        renderProductOptions(mockupsForCategory(cat));
+        $("#frontend-mockup-select").val("").trigger("change");
+    });
+
     $("#frontend-mockup-select").on("change", function () {
         const id = $(this).val();
         const file = mockups.find(m => m.id === id);

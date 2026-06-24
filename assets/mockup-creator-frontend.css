@@ -92,10 +92,10 @@
     background: #305789;
 }
 
-/* KÜÇÜK ÖNİZLEME KUTUSU */
+/* BÜYÜK ÖNİZLEME KUTUSU */
 .mockup-preview-box {
-    width: 92px;
-    height: 92px;
+    width: 180px;
+    height: 180px;
     display: flex;
     align-items: center;
     justify-content: center;

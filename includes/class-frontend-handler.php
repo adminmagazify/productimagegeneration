@@ -61,8 +61,21 @@ class PigFrontendHandler {
            ÜRÜN PROFİLLERİ
         ------------------------------------------- */
 
+        // Profillere kategori ADLARINI ekle (frontend kategori filtresi term_id değil isim kullanır)
+        $profiles_raw = get_option('mockup_product_profiles', []);
+        foreach ($profiles_raw as $pk => $pv) {
+            $cat_names = [];
+            foreach ((array) (isset($pv['kategori']) ? $pv['kategori'] : []) as $tid) {
+                $t = get_term((int) $tid, 'product_cat');
+                if ($t && !is_wp_error($t)) {
+                    $cat_names[] = $t->name;
+                }
+            }
+            $profiles_raw[$pk]['category_names'] = $cat_names;
+        }
+
         wp_localize_script('mockup-creator-frontend-js', 'mockup_profiles', [
-            'profiles' => get_option('mockup_product_profiles', [])
+            'profiles' => $profiles_raw
         ]);
     }
 
@@ -78,6 +91,32 @@ class PigFrontendHandler {
 
         <div id="mockup-creator-frontend">
             <div class="mockup-grid">
+
+                <!-- KATEGORİ SEÇİMİ -->
+                <div class="mockup-preview-wrapper">
+                    <div class="mockup-row">
+
+                        <div class="mockup-left">
+                            <label>Kategori:</label>
+
+                            <div class="mockup-input-group">
+                                <select id="frontend-category-select">
+                                    <option value="">Kategori seçin</option>
+                                </select>
+                                <button class="frontend-nav-btn prev" data-target="category">⬅</button>
+                                <button class="frontend-nav-btn next" data-target="category">➡</button>
+                            </div>
+                        </div>
+
+                        <div class="mockup-right">
+                            <div class="mockup-preview-box">
+                                <div id="category-placeholder"></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
 
                 <!-- ÜRÜN SEÇİMİ -->
                 <div class="mockup-preview-wrapper">
