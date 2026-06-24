@@ -276,6 +276,8 @@ class PigCentralSync {
                     wc_delete_product_transients($pid);
                 }
                 clean_post_cache($pid);
+                // LiteSpeed Cache: bu ürünün sayfa cache'ini purge et (eklenti yoksa no-op)
+                do_action('litespeed_purge_post', $pid);
 
                 // Geriye dönük eşlenen ürüne kalıcı bağ ekle
                 if (!get_post_meta($pid, '_pig_product_type', true)) {
@@ -288,6 +290,11 @@ class PigCentralSync {
         // Toplu fiyat değişti: ürün arşivi/fiyat-aralığı transient'lerini topluca tazele
         if ($updated > 0 && function_exists('wc_delete_product_transients')) {
             wc_delete_product_transients();
+        }
+        // LiteSpeed Cache: mağaza/arşiv sayfaları HTML cache'li → tümünü tazele
+        // (fiyat senkronu seyrek/manuel tetiklenir, tam purge kabul edilebilir).
+        if ($updated > 0) {
+            do_action('litespeed_purge_all');
         }
         return $updated;
     }

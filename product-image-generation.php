@@ -2,7 +2,7 @@
 /*
 Plugin Name: Product Image Generation
 Description: CDN Etegre Ürün Görsel Oluşturma Eklentisi
-Version: 6.5
+Version: 6.6
 Author: Magazac
 GitHub Plugin URI: https://github.com/adminmagazify/productimagegeneration
 */
