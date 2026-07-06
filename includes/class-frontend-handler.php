@@ -110,7 +110,10 @@ class PigFrontendHandler {
 
                         <div class="mockup-right">
                             <div class="mockup-preview-box">
-                                <div id="category-placeholder"></div>
+                                <?php $cat_guide = class_exists('PigR2Storage') ? PigR2Storage::url_for('koleksiyonlar/Kategori-Seçimi.jpeg') : ''; ?>
+                                <img id="category-preview-image" class="preview-img"
+                                    src="<?php echo esc_url($cat_guide); ?>" alt="Kategori Seçimi">
+                                <div id="category-placeholder" style="display:none;"></div>
                             </div>
                         </div>
 
