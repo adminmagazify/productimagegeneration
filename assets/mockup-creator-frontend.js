@@ -536,7 +536,11 @@
                 nonce: mockup_ajax.nonce,
                 image_url: previewImg,        // ön görsel (ana)
                 back_image_url: lastBackUrl,  // arka görsel (galeri) — varsa
-                product_type: productType
+                product_type: productType,
+                design_name: (function () {   // ürün adına eklenecek tasarım adı
+                    const d = designs.find(x => x.id === $("#frontend-design-select").val());
+                    return d ? d.name : "";
+                })()
             },
             success: function (response) {
 

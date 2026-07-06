@@ -341,20 +341,31 @@ function pig_create_wc_product() {
     $collection_number = substr($collectionPart, -3);
 
     $all_codes = get_option('mockup_collection_codes', []);
-    $collection_name = isset($all_codes[$collection_code])
-        ? $all_codes[$collection_code]
-        : "{$collection_code} Koleksiyonu";
+    $base = isset($all_codes[$collection_code]) ? trim($all_codes[$collection_code]) : $collection_code;
+    // "basketbol" -> "Basketbol Koleksiyonu" (zaten "Koleksiyon" içeriyorsa tekrar ekleme)
+    $collection_name = (stripos($base, 'koleksiyon') !== false)
+        ? ucwords($base)
+        : ucwords($base) . ' Koleksiyonu';
 
-    // Ürün adı: tür + koleksiyon adı + koleksiyon numarası + preset (varsa)
-    $product_name = "{$visible_type} #{$collection_name} #{$collection_number}";
+    // Tasarım adı (frontend'den) — dosya uzantısı ve ayraçları temizle, okunur hale getir
+    $design_name = isset($_POST['design_name']) ? sanitize_text_field(wp_unslash($_POST['design_name'])) : '';
+    $design_name = preg_replace('/\.(png|jpe?g|webp)$/i', '', $design_name);
+    $design_name = trim(preg_replace('/[-_]+/', ' ', $design_name));
+    $design_name = $design_name !== '' ? ucwords($design_name) : '';
 
-    // Preset varsa (#O3 gibi) ürün adına ekle
-    if ($isPreset) {
-        $product_name .= " #{$lastPart}";
+    // Ürün adı: tür + koleksiyon adı + tasarım adı (# işaretsiz, temiz)
+    // Örn: "Tshirt Standart Siyah Basketbol Koleksiyonu Yıldız"
+    $product_name = trim("{$visible_type} {$collection_name}");
+    if ($design_name !== '') {
+        $product_name .= " {$design_name}";
     }
 
-    // Slug da aynı sırayı izlesin
-    $product_slug = sanitize_title("{$visible_type}-{$collection_name}-{$collection_number}" . ($isPreset ? "-{$lastPart}" : ""));
+    // Slug: isim + benzersizlik için koleksiyon numarası + preset (isim çakışmasını önler)
+    $product_slug = sanitize_title(
+        "{$visible_type}-{$collection_name}" .
+        ($design_name !== '' ? "-{$design_name}" : '') .
+        "-{$collection_number}" . ($isPreset ? "-{$lastPart}" : "")
+    );
 
     // Duplicate kontrol (get_page_by_title WP 6.2+ ile deprecated)
     $existing_query = new WP_Query([
