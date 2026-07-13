@@ -388,8 +388,27 @@ function pig_create_wc_product() {
         ]);
     }
 
-    // Ürün oluştur
-    $product = new WC_Product_Simple();
+    // Beden preset'leri — hangi ürün tipinde hangi bedenler (native varyasyon için)
+    $size_presets = [
+        'tshirt-standart'     => ['XS','S','M','L','XL','2XL'],
+        'tshirt-oversize'     => ['S','M','L','XL'],
+        'hoodie-standart'     => ['S','M','L','XL','2XL'],
+        'sweatshirt-standart' => ['S','M','L','XL','2XL'],
+        'crop-top'            => ['S','M','L','XL'],
+        'tshirt-cocuk'        => ['1-2 Yaş','3-4 Yaş','5-6 Yaş','7-8- Yaş','9-10 Yaş','10-11 Yaş'],
+        'bebek-body'          => ['0-3 Ay','3-6 Ay','6-12 Ay','12-18 Ay','18-24 Ay'],
+    ];
+    $sizes = [];
+    if (!empty($profile['sizes']) && is_array($profile['sizes'])) {
+        $sizes = $profile['sizes'];
+    } elseif (isset($size_presets[$product_type])) {
+        $sizes = $size_presets[$product_type];
+    }
+    $sizes = array_values(array_filter(array_map('trim', (array) $sizes), function ($s) { return $s !== ''; }));
+    $has_sizes = !empty($sizes);
+
+    // Ürün oluştur — bedenli tiplerde native VARYASYONLU ürün, yoksa basit ürün
+    $product = $has_sizes ? new WC_Product_Variable() : new WC_Product_Simple();
     $product->set_name($product_name);
     $product->set_slug($product_slug);
 
@@ -450,122 +469,44 @@ function pig_create_wc_product() {
             break;
     }
 
+    // Bedenli ürün: "Beden" özelliğini (ürüne özel attribute) varyasyon için tanımla
+    if ($has_sizes) {
+        $attribute = new WC_Product_Attribute();
+        $attribute->set_id(0); // 0 = taksonomisiz, ürüne özel özellik
+        $attribute->set_name('Beden');
+        $attribute->set_options($sizes);
+        $attribute->set_position(0);
+        $attribute->set_visible(true);
+        $attribute->set_variation(true);
+        $product->set_attributes([$attribute]);
+    }
+
     $product_id = $product->save();
+
+    // Bedenli ürün: her beden için bir varyasyon (aynı fiyat, hep stokta — POD mantığı)
+    if ($has_sizes && $product_id) {
+        foreach ($sizes as $size_label) {
+            $variation = new WC_Product_Variation();
+            $variation->set_parent_id($product_id);
+            $variation->set_attributes(['beden' => $size_label]); // 'Beden' → sanitize_title = 'beden'
+            $variation->set_regular_price($profile['price']);
+            if (!empty($profile['sale_price'])) {
+                $variation->set_sale_price($profile['sale_price']);
+            }
+            $variation->set_manage_stock(false);
+            $variation->set_stock_status('instock');
+            $variation->save();
+        }
+        WC_Product_Variable::sync($product_id); // fiyat aralığı/özet veriyi yeniden hesapla
+    }
 
     // Profil bağı: bu ürün hangi profilden üretildi (fiyat senkronu için)
     if ($product_id && $product_type) {
         update_post_meta($product_id, '_pig_product_type', $product_type);
     }
 
-    /**
-     * =====================================================
-     *  APF — "Beden Seçimi" Alanını Otomatik Oluştur
-     * =====================================================
-     */
-
-    // 1) Beden preset'lerini tanımla
-    $size_presets = [
-        // product_type => beden listesi
-        'tshirt-standart' => ['XS','S','M','L','XL','2XL'],
-        'tshirt-oversize' => ['S','M','L','XL'],
-        'hoodie-standart' => ['S','M','L','XL','2XL'],
-        'sweatshirt-standart' => ['S','M','L','XL','2XL'],
-        'crop-top' => ['S','M','L','XL'],
-        'tshirt-cocuk' => ['1-2 Yaş','3-4 Yaş','5-6 Yaş','7-8- Yaş','9-10 Yaş','10-11 Yaş'],
-        'bebek-body' => ['0-3 Ay','3-6 Ay','6-12 Ay','12-18 Ay','18-24 Ay'],
-        // ihtiyaca göre buraya yenilerini eklersin
-    ];
-
-    // 2) Önce profilden oku, boşsa preset kullan
-    $sizes = [];
-    if (!empty($profile['sizes']) && is_array($profile['sizes'])) {
-        // ileride profil tarafına "bedenler" alanı eklediğimizde burası devreye girecek
-        $sizes = $profile['sizes'];
-    } elseif (isset($size_presets[$product_type])) {
-        // şimdilik sadece preset
-        $sizes = $size_presets[$product_type];
-    }
-
-    if (!empty($sizes)) {
-
-        // APF'nin kullandığı formata benzeyen küçük slug generator
-        if (!function_exists('mc_apf_random_slug')) {
-            function mc_apf_random_slug() {
-                $chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-                $s = '';
-                for ($i = 0; $i < 5; $i++) {
-                    $s .= $chars[rand(0, strlen($chars) - 1)];
-                }
-                return $s;
-            }
-        }
-
-        // 3) Seçenekleri APF formatında hazırla
-        $choices = [];
-        foreach ($sizes as $size_label) {
-            $label = trim($size_label);
-            if ($label === '') continue;
-
-            $choices[] = [
-                "slug"           => mc_apf_random_slug(),
-                "label"          => $label,
-                "selected"       => false,
-                "disabled"       => false,
-                "options"        => [],
-                "pricing_type"   => "none",
-                "pricing_amount" => 0,
-            ];
-        }
-
-        if (!empty($choices)) {
-
-            $field_id = substr(md5(uniqid('', true)), 0, 7); // 7 karakterlik ID
-
-            // 4) APF fieldgroup array — manuel ürün rule’u koymuyoruz
-            $apf = [
-                "id"        => "p_" . $product_id,
-                "type"      => "wapf_product",
-                "layout"    => [
-                    "labels_position"       => "above",
-                    "instructions_position" => "field",
-                    "mark_required"         => true,
-                    "enable_gallery_images" => false,
-                    "gallery_images"        => [],
-                    "swap_type"             => "rules",
-                ],
-                "variables" => [],
-                "fields"    => [
-                    [
-                        "id"           => $field_id,
-                        "label"        => "Beden Seçimi",
-                        "description"  => null,
-                        "type"         => "select",
-                        "required"     => true,
-                        "class"        => null,
-                        "width"        => null,
-                        "parent_clone" => [],
-                        "options"      => [
-                            "choices" => $choices,
-                            "group"   => "field",
-                        ],
-                        "conditionals" => [],
-                        "clone"        => ["enabled" => false],
-                        "pricing"      => [
-                            "type"    => "fixed",
-                            "amount"  => 0,
-                            "enabled" => false,
-                        ],
-                    ]
-                ],
-                // rule_groups boş → bu fieldgroup doğrudan ürün meta’sından okunuyor
-                "rule_groups" => [],
-            ];
-
-            // 5) APF'nin gerçekten kullandığı meta key
-            update_post_meta($product_id, '_wapf_fieldgroup', serialize($apf));
-            update_post_meta($product_id, '_wapf_layers_enabled', "1");
-        }
-    }
+    // (Beden seçimi artık native WooCommerce varyasyonu olarak yukarıda kuruluyor —
+    //  eski WAPF/_wapf_fieldgroup yöntemi kaldırıldı.)
 
     // Marka ekle
     if (!empty($profile['brands'])) {
