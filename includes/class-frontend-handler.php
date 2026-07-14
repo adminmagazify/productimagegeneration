@@ -231,6 +231,23 @@ class PigFrontendHandler {
 
 
 
+                <!-- CİNSİYET -->
+                <div class="mockup-preview-wrapper">
+                    <div class="mockup-row">
+                        <div class="mockup-left">
+                            <label>Cinsiyet:</label>
+                            <div class="mockup-input-group">
+                                <select id="frontend-gender-select">
+                                    <option value="">Seçiniz (çocuk/bebekte boş bırak)</option>
+                                    <option value="kadin">Kadın</option>
+                                    <option value="erkek">Erkek</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mockup-right"></div>
+                    </div>
+                </div>
+
                 <!-- BİLGİLENDİRME / UYARILAR -->
                 <div class="mockup-notes" style="margin:14px 0;padding:12px 16px;background:#fff8e1;border:1px solid #ffe082;border-left:4px solid #ffb300;border-radius:8px;font-size:13px;line-height:1.55;color:#5d4037;">
                     <div style="font-weight:600;margin-bottom:6px;">ℹ️ Bilgilendirme</div>

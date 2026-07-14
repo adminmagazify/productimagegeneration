@@ -516,11 +516,17 @@
             return;
         }
 
-        const productType = extractProductTypeFromFilename(mockupFile.name);
+        let productType = extractProductTypeFromFilename(mockupFile.name);
 
         if (!productType) {
             alert("Bu dosyadan ürün tipi çıkarılamadı! (" + mockupFile.name + ")");
             return;
+        }
+
+        // Cinsiyet seçimi productType'a eklenir (çocuk/bebek hariç) → Kadın/Erkek profili ayrı eşleşir
+        var _gender = $("#frontend-gender-select").val();
+        if (_gender && productType.indexOf("cocuk") === -1 && productType.indexOf("bebek") === -1) {
+            productType = productType + "-" + _gender;
         }
 
         // --- ANİMASYONU BAŞLAT ---
