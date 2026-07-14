@@ -523,9 +523,12 @@
             return;
         }
 
-        // Cinsiyet seçimi productType'a eklenir (çocuk/bebek hariç) → Kadın/Erkek profili ayrı eşleşir
+        // Cinsiyet seçimi productType'a eklenir — SADECE giyim ürünlerinde.
+        // Yastık/bardak gibi tekstil-dışı ürünler cinsiyetsizdir (gender eklenmez).
         var _gender = $("#frontend-gender-select").val();
-        if (_gender && productType.indexOf("cocuk") === -1 && productType.indexOf("bebek") === -1) {
+        var _garment = productType.split("-")[0];
+        var _apparel = ["tshirt", "hoodie", "sweatshirt", "sweat", "crop"];
+        if (_gender && _apparel.indexOf(_garment) !== -1) {
             productType = productType + "-" + _gender;
         }
 

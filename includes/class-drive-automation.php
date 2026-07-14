@@ -392,17 +392,21 @@ function pig_create_wc_product() {
     // {urun}-{premium/standart}-{cinsiyet} → sabit anahtar listesi tutmuyoruz).
     // Böylece hoodie-premium-kadin, tshirt-standart-erkek vb. TÜM kombinasyonlarda çalışır.
     $pt = strtolower($product_type);
+    $first_tok = explode('-', $pt)[0];
     if (!empty($profile['sizes']) && is_array($profile['sizes'])) {
         $sizes = $profile['sizes'];
     } elseif (strpos($pt, 'cocuk') !== false || strpos($pt, 'çocuk') !== false) {
         $sizes = ['4-5 Yaş', '6-7 Yaş', '8-9 Yaş', '10-11 Yaş', '12-13 Yaş'];
     } elseif (strpos($pt, 'bebek') !== false) {
         $sizes = ['0-3 Ay', '3-6 Ay', '6-12 Ay', '12-18 Ay', '18-24 Ay'];
-    } elseif (strpos($pt, 'crop') !== false) {
+    } elseif ($first_tok === 'crop' || strpos($pt, 'crop') !== false) {
         $sizes = ['S', 'M', 'L', 'XL'];
-    } else {
-        // Yetişkin tişört / hoodie / sweatshirt (premium & standart, kadın & erkek)
+    } elseif (in_array($first_tok, ['tshirt', 'hoodie', 'sweatshirt', 'sweat'], true)) {
+        // Yetişkin giyim (premium & standart, kadın & erkek)
         $sizes = ['S', 'M', 'L', 'XL', 'XXL'];
+    } else {
+        // Tekstil-dışı (bez yastık, bardak vb.) → bedensiz, basit ürün
+        $sizes = [];
     }
     $sizes = array_values(array_filter(array_map('trim', (array) $sizes), function ($s) { return $s !== ''; }));
     $has_sizes = !empty($sizes);
