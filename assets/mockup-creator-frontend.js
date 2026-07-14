@@ -174,12 +174,24 @@
         if (ddMockup) ddMockup.render();
     }
 
+    // Ürün tipini normalize eder: Türkçe karakter foldingı + tişört/tshirt eşitleme.
+    function _normType(s) {
+        return String(s || "").toLowerCase()
+            .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/İ/g, "i")
+            .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
+            .replace(/tişört|tisort/g, "tshirt");
+    }
+    // Token'ları sıralayıp birleştirir → SIRA farkına takılmaz (tshirt-cocuk == cocuk-tshirt).
+    function _typeKey(s) {
+        return _normType(s).split(/[-\s]+/).filter(Boolean).sort().join("-");
+    }
+
     // Seçili PROFİLİN product_type'ına ait mockup'lar. Mockup adında cinsiyet eki yok
-    // (Hoodie-Premium-...), profilde var (hoodie-premium-kadin) → eki soyup eşleştir.
+    // (Hoodie-Premium-...), profilde var (hoodie-premium-kadin) → eki soy + tolerant eşleştir.
     function mockupsForCategory(selectedType) {
         if (!selectedType) return mockups;
-        const base = String(selectedType).toLowerCase().replace(/-(kadin|erkek)$/, '');
-        return mockups.filter(m => extractProductTypeFromFilename(m.name) === base);
+        const baseKey = _typeKey(String(selectedType).replace(/-(kadin|erkek)$/i, ""));
+        return mockups.filter(m => _typeKey(extractProductTypeFromFilename(m.name)) === baseKey);
     }
 
     // Dropdown ÜRÜN PROFİLİ adlarıyla dolar (value = profilin product_type'ı).
