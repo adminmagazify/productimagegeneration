@@ -231,6 +231,16 @@ class PigFrontendHandler {
 
 
 
+                <!-- BİLGİLENDİRME / UYARILAR -->
+                <div class="mockup-notes" style="margin:14px 0;padding:12px 16px;background:#fff8e1;border:1px solid #ffe082;border-left:4px solid #ffb300;border-radius:8px;font-size:13px;line-height:1.55;color:#5d4037;">
+                    <div style="font-weight:600;margin-bottom:6px;">ℹ️ Bilgilendirme</div>
+                    <ul style="margin:0;padding-left:18px;">
+                        <li>Sweatshirt ve hoodie ürünlerinde <b>büyük boy tasarım</b> seçildiği takdirde, tasarım ürünlerin cep alanlarının üzerine geldiği için <b>büyük seçimlerde orta boy olarak basılacaktır</b>.</li>
+                        <li>Bardak üzerine basım şu anda iki tarafa da <b>aynı tasarım</b> ile yapılmaktadır; en kısa sürede iki tarafa da farklı baskı seçeneği sunulacaktır.</li>
+                        <li>Tekstil ürünlerinde basım şu anda <b>sadece ön yüze</b> yapılmaktadır; en kısa sürede iki tarafa da farklı baskı seçeneği sunulacaktır.</li>
+                    </ul>
+                </div>
+
                 <!-- ÜRÜN GÖRSELİ OLUŞTUR -->
                 <div class="mockup-row generate-row">
                     <div class="mockup-left">
