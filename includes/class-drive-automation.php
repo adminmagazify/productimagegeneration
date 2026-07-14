@@ -388,21 +388,21 @@ function pig_create_wc_product() {
         ]);
     }
 
-    // Beden preset'leri — hangi ürün tipinde hangi bedenler (native varyasyon için)
-    $size_presets = [
-        'tshirt-standart'     => ['XS','S','M','L','XL','2XL'],
-        'tshirt-oversize'     => ['S','M','L','XL'],
-        'hoodie-standart'     => ['S','M','L','XL','2XL'],
-        'sweatshirt-standart' => ['S','M','L','XL','2XL'],
-        'crop-top'            => ['S','M','L','XL'],
-        'tshirt-cocuk'        => ['1-2 Yaş','3-4 Yaş','5-6 Yaş','7-8- Yaş','9-10 Yaş','10-11 Yaş'],
-        'bebek-body'          => ['0-3 Ay','3-6 Ay','6-12 Ay','12-18 Ay','18-24 Ay'],
-    ];
-    $sizes = [];
+    // Beden listesi — productType'ın ürün CİNSİNDEN türetilir (format artık
+    // {urun}-{premium/standart}-{cinsiyet} → sabit anahtar listesi tutmuyoruz).
+    // Böylece hoodie-premium-kadin, tshirt-standart-erkek vb. TÜM kombinasyonlarda çalışır.
+    $pt = strtolower($product_type);
     if (!empty($profile['sizes']) && is_array($profile['sizes'])) {
         $sizes = $profile['sizes'];
-    } elseif (isset($size_presets[$product_type])) {
-        $sizes = $size_presets[$product_type];
+    } elseif (strpos($pt, 'cocuk') !== false || strpos($pt, 'çocuk') !== false) {
+        $sizes = ['4-5 Yaş', '6-7 Yaş', '8-9 Yaş', '10-11 Yaş', '12-13 Yaş'];
+    } elseif (strpos($pt, 'bebek') !== false) {
+        $sizes = ['0-3 Ay', '3-6 Ay', '6-12 Ay', '12-18 Ay', '18-24 Ay'];
+    } elseif (strpos($pt, 'crop') !== false) {
+        $sizes = ['S', 'M', 'L', 'XL'];
+    } else {
+        // Yetişkin tişört / hoodie / sweatshirt (premium & standart, kadın & erkek)
+        $sizes = ['S', 'M', 'L', 'XL', 'XXL'];
     }
     $sizes = array_values(array_filter(array_map('trim', (array) $sizes), function ($s) { return $s !== ''; }));
     $has_sizes = !empty($sizes);
