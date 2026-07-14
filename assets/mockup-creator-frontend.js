@@ -174,34 +174,29 @@
         if (ddMockup) ddMockup.render();
     }
 
-    // Seçili kategorideki profillerin product_type'larına sahip mockup'lar (kategori boşsa hepsi).
-    function mockupsForCategory(catName) {
-        if (!catName) return mockups;
-        const profiles = getProfiles();
-        const types = [];
-        Object.keys(profiles).forEach(k => {
-            const p = profiles[k] || {};
-            const cats = p.category_names || [];
-            if (cats.indexOf(catName) !== -1 && p.product_type) {
-                types.push(String(p.product_type).toLowerCase());
-            }
-        });
-        return mockups.filter(m => types.indexOf(extractProductTypeFromFilename(m.name)) !== -1);
+    // Seçili PROFİLİN product_type'ına ait mockup'lar. Mockup adında cinsiyet eki yok
+    // (Hoodie-Premium-...), profilde var (hoodie-premium-kadin) → eki soyup eşleştir.
+    function mockupsForCategory(selectedType) {
+        if (!selectedType) return mockups;
+        const base = String(selectedType).toLowerCase().replace(/-(kadin|erkek)$/, '');
+        return mockups.filter(m => extractProductTypeFromFilename(m.name) === base);
     }
 
+    // Dropdown ÜRÜN PROFİLİ adlarıyla dolar (value = profilin product_type'ı).
     function initCategoryDropdown() {
         const profiles = getProfiles();
-        const cats = [];
+        const items = [];
         Object.keys(profiles).forEach(k => {
-            ((profiles[k] || {}).category_names || []).forEach(c => {
-                if (c && cats.indexOf(c) === -1) cats.push(c);
-            });
+            const p = profiles[k] || {};
+            const title = p.profile_title || p.product_type || '';
+            const pt = p.product_type || '';
+            if (title && pt) items.push({ title: title, pt: pt });
         });
-        cats.sort((a, b) => a.localeCompare(b, 'tr'));
+        items.sort((a, b) => a.title.localeCompare(b.title, 'tr'));
         const $select = $("#frontend-category-select");
         const current = $select.val();
-        $select.empty().append(`<option value="">Kategori seçin</option>`);
-        cats.forEach(c => $select.append(`<option value="${c}">${c}</option>`));
+        $select.empty().append(`<option value="">Ürün profili seçin</option>`);
+        items.forEach(it => $select.append(`<option value="${it.pt}">${it.title}</option>`));
         if (current) $select.val(current);
     }
 
@@ -516,20 +511,13 @@
             return;
         }
 
-        let productType = extractProductTypeFromFilename(mockupFile.name);
+        // Ürün tipi = seçili ÜRÜN PROFİLİ (dropdown value = profilin product_type'ı).
+        // Cinsiyet/kalite profilde zaten kodlu; mockup adından çıkarmaya/gender eklemeye gerek yok.
+        const productType = $("#frontend-category-select").val();
 
         if (!productType) {
-            alert("Bu dosyadan ürün tipi çıkarılamadı! (" + mockupFile.name + ")");
+            alert("Lütfen önce bir ürün profili seçin!");
             return;
-        }
-
-        // Cinsiyet seçimi productType'a eklenir — SADECE giyim ürünlerinde.
-        // Yastık/bardak gibi tekstil-dışı ürünler cinsiyetsizdir (gender eklenmez).
-        var _gender = $("#frontend-gender-select").val();
-        var _garment = productType.split("-")[0];
-        var _apparel = ["tshirt", "hoodie", "sweatshirt", "sweat", "crop"];
-        if (_gender && _apparel.indexOf(_garment) !== -1) {
-            productType = productType + "-" + _gender;
         }
 
         // --- ANİMASYONU BAŞLAT ---
