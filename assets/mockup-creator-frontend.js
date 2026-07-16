@@ -185,6 +185,10 @@
             .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
             .replace(/tişört|tisort/g, "tshirt")
             .replace(/[-_\s]+/g, " ")
+            // Kalite eşanlamlıları: R2 iç adı "Standart"/"Premium" ↔ panel başlığı "Basic"/"Oversize Premium"
+            .replace(/\bstandart\b/g, "basic")
+            .replace(/\boversize\b/g, "")
+            .replace(/\s+/g, " ")
             .trim();
     }
 
