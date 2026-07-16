@@ -80,6 +80,7 @@
     let designs = {};
     let presets = {};
     let lastBackUrl = "";   // son üretilen arka görselin URL'i (ürün galerisi için)
+    let typeToTitle = {};   // product_type → profil başlığı (R2 varyant eşleştirmesi için)
 
     /* --------------------------------------
        RESİMLİ ÖZEL DROPDOWN
@@ -175,22 +176,28 @@
     }
 
     // Ürün tipini normalize eder: uzantı at + Türkçe karakter foldingı + tişört/tshirt eşitleme.
+    // Ürün adını normalize eder: uzantı at + Türkçe folding + tişört/tshirt eşitleme
+    // + tüm ayraçları (tire/alt çizgi/boşluk) TEK BOŞLUĞA indir → "Hoodie-Basic" == "Hoodie Basic".
     function _normType(s) {
         return String(s || "").toLowerCase()
             .replace(/\.(png|jpe?g|webp)$/i, "")
             .replace(/ç/g, "c").replace(/ğ/g, "g").replace(/ı/g, "i").replace(/İ/g, "i")
             .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ü/g, "u")
-            .replace(/tişört|tisort/g, "tshirt");
+            .replace(/tişört|tisort/g, "tshirt")
+            .replace(/[-_\s]+/g, " ")
+            .trim();
     }
 
-    // Mockup dosya adı profilin product_type'ıyla BAŞLAR: hoodie-premium-kadin-beyaz-...
-    // Cinsiyet dosya adında OLDUĞU için ÖNEK (prefix) eşleşmesi Kadın/Erkek'i doğru ayırır.
-    function mockupsForCategory(selectedType) {
-        if (!selectedType) return mockups;
-        const pt = _normType(selectedType);
+    // Seçili profilin R2 renk varyantlarını döner. R2 adları "Profil Adı + Renk" biçiminde
+    // ("Hoodie Basic Erkek Beyaz"), o yüzden profilin BAŞLIĞIYLA (title) önek eşleşmesi yapılır.
+    // Cinsiyet/kalite başlıkta olduğu için Kadın/Erkek, Basic/Premium doğru ayrılır.
+    function mockupsForCategory(productType) {
+        if (!productType) return mockups;
+        const title = typeToTitle[productType] || productType;
+        const t = _normType(title);
         return mockups.filter(m => {
             const n = _normType(m.name);
-            return n === pt || n.indexOf(pt + "-") === 0;
+            return n === t || n.indexOf(t + " ") === 0;
         });
     }
 
@@ -198,11 +205,12 @@
     function initCategoryDropdown() {
         const profiles = getProfiles();
         const items = [];
+        typeToTitle = {};
         Object.keys(profiles).forEach(k => {
             const p = profiles[k] || {};
             const title = p.profile_title || p.product_type || '';
             const pt = p.product_type || '';
-            if (title && pt) items.push({ title: title, pt: pt });
+            if (title && pt) { items.push({ title: title, pt: pt }); typeToTitle[pt] = title; }
         });
         items.sort((a, b) => a.title.localeCompare(b.title, 'tr'));
         const $select = $("#frontend-category-select");
