@@ -264,6 +264,18 @@ function mc_stable_permalink($product_id) {
  * Ürün Oluşturma (AJAX)
  * ------------------------------------------
  */
+// SKU parçası için: Türkçe karakterleri ASCII'ye çevir, büyük harf, sadece harf/rakam.
+// "Yıldız" → "YILDIZ", "Kırmızı" → "KIRMIZI", "CTY001" → "CTY001"
+if (!function_exists('pig_code_upper')) {
+    function pig_code_upper($s) {
+        $s = (string) $s;
+        $tr = ['ç'=>'c','Ç'=>'C','ğ'=>'g','Ğ'=>'G','ı'=>'i','İ'=>'I','ö'=>'o','Ö'=>'O','ş'=>'s','Ş'=>'S','ü'=>'u','Ü'=>'U'];
+        $s = strtr($s, $tr);
+        $s = strtoupper($s);
+        return preg_replace('/[^A-Z0-9]+/', '', $s);
+    }
+}
+
 add_action('wp_ajax_mockup_create_wc_product', 'pig_create_wc_product');
 add_action('wp_ajax_nopriv_mockup_create_wc_product', 'pig_create_wc_product');
 
@@ -353,25 +365,41 @@ function pig_create_wc_product() {
     $design_name = trim(preg_replace('/[-_]+/', ' ', $design_name));
     $design_name = $design_name !== '' ? ucwords($design_name) : '';
 
-    // Ürün adı: tür + koleksiyon adı + tasarım adı (# işaretsiz, temiz)
-    // Örn: "Tshirt Standart Siyah Basketbol Koleksiyonu Yıldız"
-    $product_name = trim("{$visible_type} {$collection_name}");
-    if ($design_name !== '') {
-        $product_name .= " {$design_name}";
+    // Renk: seçili mockup dosya adının SON parçası ("Hoodie-Standart-Erkek-Siyah" → "Siyah")
+    $mockup_name_in = isset($_POST['mockup_name']) ? sanitize_text_field(wp_unslash($_POST['mockup_name'])) : '';
+    $mockup_base    = preg_replace('/\.(png|jpe?g|webp)$/i', '', $mockup_name_in);
+    $mock_parts     = preg_split('/[-_\s]+/', trim((string) $mockup_base));
+    $color          = (is_array($mock_parts) && count($mock_parts)) ? (string) end($mock_parts) : '';
+    if ($color !== '') {
+        $color = function_exists('mb_convert_case') ? mb_convert_case($color, MB_CASE_TITLE, 'UTF-8') : ucfirst($color);
     }
 
-    // Slug: isim + benzersizlik için koleksiyon numarası + preset (isim çakışmasını önler)
+    // Görünen ürün adı: {Renk} {Kesim} {Ürün} {Cinsiyet}
+    // Profil başlığından: Basic/Standart/Premium GİZLE, Oversize öne al, Tshirt→Tişört.
+    // Örn: profil "Tshirt Oversize Premium Erkek" + renk "Siyah" → "Siyah Oversize Tişört Erkek"
+    $ptitle = (isset($profile['profile_title']) && $profile['profile_title'] !== '')
+        ? (string) $profile['profile_title'] : $visible_type;
+    $clean = preg_replace('/\b(basic|standart|premium)\b/iu', '', $ptitle);
+    $clean = preg_replace('/\btshirt\b|\btisort\b|\btiş?ört\b/iu', 'Tişört', $clean);
+    $clean = trim(preg_replace('/\s+/', ' ', $clean));
+    if (preg_match('/\boversize\b/iu', $clean)) {
+        $clean = trim(preg_replace('/\s+/', ' ', preg_replace('/\boversize\b/iu', '', $clean)));
+        $clean = 'Oversize ' . $clean;
+    }
+    $product_name = trim(($color !== '' ? $color . ' ' : '') . $clean);
+
+    // Slug: görünen ad + tasarım + koleksiyon no (tasarım dahil → gerçek ürün benzersiz)
     $product_slug = sanitize_title(
-        "{$visible_type}-{$collection_name}" .
+        $product_name .
         ($design_name !== '' ? "-{$design_name}" : '') .
         "-{$collection_number}" . ($isPreset ? "-{$lastPart}" : "")
     );
 
-    // Duplicate kontrol (get_page_by_title WP 6.2+ ile deprecated)
+    // Duplicate kontrol — SLUG bazlı (görünen ad tasarımlar arası tekrar edebilir; slug tasarım dahil benzersiz)
     $existing_query = new WP_Query([
         'post_type'              => 'product',
         'post_status'            => 'any',
-        'title'                  => $product_name,
+        'name'                   => $product_slug,
         'posts_per_page'         => 1,
         'fields'                 => 'ids',
         'no_found_rows'          => true,
@@ -438,7 +466,19 @@ function pig_create_wc_product() {
         $product->set_category_ids($profile['kategori']);
     }
 
-    $product->set_sku($profile['sku_prefix'] . rand(10000, 99999));
+    // SKU / ürün kodu: KOLEKSIYON-TASARIM-RENK-NO  (örn. BSK001-YILDIZ-SIYAH-4821)
+    $sku_core = implode('-', array_filter([
+        pig_code_upper($collectionPart),
+        pig_code_upper($design_name),
+        pig_code_upper($color),
+    ]));
+    $sku = ($sku_core !== '' ? $sku_core . '-' : '') . rand(1000, 9999);
+    if (function_exists('wc_get_product_id_by_sku')) {
+        while (wc_get_product_id_by_sku($sku)) {
+            $sku = ($sku_core !== '' ? $sku_core . '-' : '') . rand(1000, 9999);
+        }
+    }
+    $product->set_sku($sku);
 
     // Stok yönetimi
     $mode = $profile['stock_mode'] ?? 'instock';
