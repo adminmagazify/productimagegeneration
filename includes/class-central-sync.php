@@ -222,7 +222,19 @@ class PigCentralSync {
         }
         update_option(self::OPTION, $profiles);
         $priceUpdated = self::sync_product_prices($profiles);
-        return rest_ensure_response(['applied' => count($profiles), 'pricesUpdated' => $priceUpdated]);
+
+        // Merkezden gelen bilgilendirme notları (varsa) → frontend option'ı (WP admin'i geçersiz kılar)
+        $notesApplied = false;
+        if (is_array($body) && array_key_exists('notes', $body)) {
+            update_option('pig_frontend_notes', sanitize_textarea_field((string) $body['notes']));
+            $notesApplied = true;
+        }
+
+        return rest_ensure_response([
+            'applied'       => count($profiles),
+            'pricesUpdated' => $priceUpdated,
+            'notesApplied'  => $notesApplied,
+        ]);
     }
 
     /** Beden tablosunu (ts_size_chart) başlığıyla bulur. */
