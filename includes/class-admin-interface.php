@@ -47,6 +47,16 @@ class PigAdminInterface {
             array($this, 'render_collection_codes_page')
         );
 
+        // Bilgilendirme Notları (ürün oluşturma ekranındaki uyarı maddeleri)
+        add_submenu_page(
+            'mockup-creator',
+            'Bilgilendirme Notları',
+            'Bilgilendirme Notları',
+            'manage_options',
+            'mockup-notes',
+            array($this, 'render_notes_page')
+        );
+
         // Koleksiyon düzenleme (gizli sayfa)
         add_submenu_page(
             null,
@@ -59,6 +69,55 @@ class PigAdminInterface {
 
     }
     
+    // Ürün oluşturma ekranındaki "ℹ️ Bilgilendirme" maddelerini yönetir (pig_frontend_notes option).
+    public function render_notes_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        if (isset($_POST['save_pig_notes']) && check_admin_referer('save_pig_notes')) {
+            $raw = isset($_POST['pig_frontend_notes']) ? wp_unslash($_POST['pig_frontend_notes']) : '';
+            update_option('pig_frontend_notes', sanitize_textarea_field($raw));
+            echo '<div class="notice notice-success is-dismissible"><p>Bilgilendirme notları kaydedildi.</p></div>';
+        }
+
+        $notes = (string) get_option('pig_frontend_notes', '');
+        if ($notes === '') {
+            $notes = "Sweatshirt ve hoodie ürünlerinde **büyük boy tasarım** seçildiği takdirde, tasarım ürünlerin cep alanlarının üzerine geldiği için **büyük seçimlerde orta boy olarak basılacaktır**.\n"
+                   . "Bardak üzerine basım şu anda iki tarafa da **aynı tasarım** ile yapılmaktadır; en kısa sürede iki tarafa da farklı baskı seçeneği sunulacaktır.\n"
+                   . "Tekstil ürünlerinde basım şu anda **sadece ön yüze** yapılmaktadır; en kısa sürede iki tarafa da farklı baskı seçeneği sunulacaktır.";
+        }
+        ?>
+        <div class="wrap">
+            <h1>Bilgilendirme Notları</h1>
+            <p class="description">
+                Ürün oluşturma ekranının altındaki <b>“ℹ️ Bilgilendirme”</b> kutusunda gösterilir.
+                <b>Her satır bir madde.</b> Kalın yazı için <code>**metin**</code> kullan. Boş bırakırsan kutu gizlenir.
+                Yeni not eklemek için kod değiştirmene gerek yok — buradan yaz, kaydet.
+            </p>
+            <form method="post">
+                <?php wp_nonce_field('save_pig_notes'); ?>
+                <textarea name="pig_frontend_notes" rows="10" style="width:100%;max-width:840px;font-size:14px;line-height:1.6;"><?php echo esc_textarea($notes); ?></textarea>
+                <p><button class="button button-primary" name="save_pig_notes" value="1">Kaydet</button></p>
+            </form>
+
+            <h2>Önizleme</h2>
+            <?php
+            $lines = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', $notes)));
+            if (!empty($lines)) {
+                echo '<div style="margin:8px 0;padding:12px 16px;background:#fff8e1;border:1px solid #ffe082;border-left:4px solid #ffb300;border-radius:8px;max-width:840px;font-size:13px;line-height:1.55;color:#5d4037;">';
+                echo '<div style="font-weight:600;margin-bottom:6px;">ℹ️ Bilgilendirme</div><ul style="margin:0;padding-left:18px;">';
+                foreach ($lines as $ln) {
+                    $html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', esc_html($ln));
+                    echo '<li>' . wp_kses($html, array('strong' => array(), 'b' => array(), 'br' => array())) . '</li>';
+                }
+                echo '</ul></div>';
+            }
+            ?>
+        </div>
+        <?php
+    }
+
     public function enqueue_scripts($hook) {
         if ($hook !== 'toplevel_page_mockup-creator') {
             return;
