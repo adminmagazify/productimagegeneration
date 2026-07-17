@@ -214,14 +214,20 @@ class PigCentralSync {
     /** Merkezden gelen profilleri yerel option'a yazar (term eşlemesiyle). */
     public static function handle_push($request) {
         $body = $request->get_json_params();
-        $incoming = (is_array($body) && isset($body['profiles']) && is_array($body['profiles'])) ? $body['profiles'] : [];
-        $profiles = [];
-        foreach ($incoming as $row) {
-            $key = isset($row['id']) ? 'central_' . intval($row['id']) : uniqid('profile_');
-            $profiles[$key] = self::from_named($row);
+
+        // Profiller yalnız body'de varsa güncellenir — "ayar-only" push profilleri SİLMEZ.
+        $profilesApplied = 0;
+        $priceUpdated = 0;
+        if (is_array($body) && isset($body['profiles']) && is_array($body['profiles'])) {
+            $profiles = [];
+            foreach ($body['profiles'] as $row) {
+                $key = isset($row['id']) ? 'central_' . intval($row['id']) : uniqid('profile_');
+                $profiles[$key] = self::from_named($row);
+            }
+            update_option(self::OPTION, $profiles);
+            $priceUpdated = self::sync_product_prices($profiles);
+            $profilesApplied = count($profiles);
         }
-        update_option(self::OPTION, $profiles);
-        $priceUpdated = self::sync_product_prices($profiles);
 
         // Merkezden gelen bilgilendirme notları (varsa) → frontend option'ı (WP admin'i geçersiz kılar)
         $notesApplied = false;
@@ -253,9 +259,10 @@ class PigCentralSync {
         }
 
         return rest_ensure_response([
-            'applied'       => count($profiles),
-            'pricesUpdated' => $priceUpdated,
-            'notesApplied'  => $notesApplied,
+            'applied'        => $profilesApplied,
+            'pricesUpdated'  => $priceUpdated,
+            'notesApplied'   => $notesApplied,
+            'presetsApplied' => $presetsApplied,
         ]);
     }
 
