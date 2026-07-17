@@ -234,6 +234,24 @@ class PigCentralSync {
             $notesApplied = true;
         }
 
+        // Merkezden gelen tasarım boyutu preset'leri (varsa) → mockup_presets option'ı
+        $presetsApplied = 0;
+        if (is_array($body) && isset($body['presets']) && is_array($body['presets'])) {
+            $preset_map = [];
+            foreach ($body['presets'] as $pr) {
+                $key = isset($pr['id']) ? 'central_' . intval($pr['id']) : uniqid('preset_');
+                $preset_map[$key] = [
+                    'name'  => sanitize_text_field(isset($pr['name']) ? $pr['name'] : ''),
+                    'code'  => sanitize_text_field(isset($pr['code']) ? $pr['code'] : ''),
+                    'width' => floatval(isset($pr['width']) ? $pr['width'] : 0),
+                    'left'  => floatval(isset($pr['left']) ? $pr['left'] : 0),
+                    'top'   => floatval(isset($pr['top']) ? $pr['top'] : 0),
+                ];
+            }
+            update_option('mockup_presets', $preset_map);
+            $presetsApplied = count($preset_map);
+        }
+
         return rest_ensure_response([
             'applied'       => count($profiles),
             'pricesUpdated' => $priceUpdated,
