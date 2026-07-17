@@ -92,6 +92,22 @@ class PigFrontendHandler {
         <div id="mockup-creator-frontend">
             <div class="mockup-grid">
 
+                <!-- ÜST BİLGİLENDİRME (panelden yönetilir: pig_frontend_notes_top; boşsa gizli) -->
+                <?php
+                $pig_notes_top_raw = get_option('pig_frontend_notes_top', '');
+                $pig_notes_top = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) $pig_notes_top_raw)));
+                if (!empty($pig_notes_top)) : ?>
+                <div class="mockup-notes mockup-notes-top" style="margin:0 0 14px;padding:12px 16px;background:#fff8e1;border:1px solid #ffe082;border-left:4px solid #ffb300;border-radius:8px;font-size:13px;line-height:1.55;color:#5d4037;">
+                    <div style="font-weight:600;margin-bottom:6px;">ℹ️ Bilgilendirme</div>
+                    <ul style="margin:0;padding-left:18px;">
+                        <?php foreach ($pig_notes_top as $pig_note_t) :
+                            $pig_note_t_html = preg_replace('/\*\*(.+?)\*\*/s', '<strong>$1</strong>', esc_html($pig_note_t)); ?>
+                        <li><?php echo wp_kses($pig_note_t_html, array('strong' => array(), 'b' => array(), 'br' => array(), 'a' => array('href' => array(), 'target' => array()))); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <?php endif; ?>
+
                 <!-- KATEGORİ SEÇİMİ -->
                 <div class="mockup-preview-wrapper">
                     <div class="mockup-row">

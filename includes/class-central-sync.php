@@ -229,6 +229,10 @@ class PigCentralSync {
             update_option('pig_frontend_notes', sanitize_textarea_field((string) $body['notes']));
             $notesApplied = true;
         }
+        if (is_array($body) && array_key_exists('notesTop', $body)) {
+            update_option('pig_frontend_notes_top', sanitize_textarea_field((string) $body['notesTop']));
+            $notesApplied = true;
+        }
 
         return rest_ensure_response([
             'applied'       => count($profiles),
