@@ -588,6 +588,40 @@ class PigR2Storage {
         return $map;
     }
 
+    /** Ad karşılaştırma için normalize: küçük harf + Türkçe→ASCII + harf/rakam dışını at. */
+    private static function norm_key($s) {
+        $s = (string) $s;
+        $tr = ['ç'=>'c','Ç'=>'c','ğ'=>'g','Ğ'=>'g','ı'=>'i','İ'=>'i','ö'=>'o','Ö'=>'o','ş'=>'s','Ş'=>'s','ü'=>'u','Ü'=>'u'];
+        $s = strtr($s, $tr);
+        $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+        return preg_replace('/[^a-z0-9]+/', '', $s);
+    }
+
+    /**
+     * Koleksiyon prefiksinin KÖKÜNDEKİ rehber görselini adına göre bulur.
+     * Ayraç/büyük-küçük/Türkçe karakter farkına takılmaz: guide_image_url('profil')
+     * → "Profil Seçimi.jpeg", "Profil-Secimi.jpg" vb. hepsini bulur. Yoksa '' döner.
+     */
+    public static function guide_image_url($needle) {
+        $want = self::norm_key($needle);
+        if ($want === '') {
+            return '';
+        }
+        $base = self::collections_prefix();
+        $res  = self::list_objects($base, '/');
+        if (is_wp_error($res)) {
+            return '';
+        }
+        foreach ($res['objects'] as $o) {
+            if (!self::is_image($o['key'])) continue;
+            $name = self::basename_key($o['key']);
+            if ($name !== '' && strpos(self::norm_key($name), $want) !== false) {
+                return self::url_for($o['key']);
+            }
+        }
+        return '';
+    }
+
     /** Koleksiyon adına uyan kapak görselinin URL'i (yoksa ''). */
     private static function cover_url_for_collection($collection_name) {
         $key = strtolower(trim((string) $collection_name));

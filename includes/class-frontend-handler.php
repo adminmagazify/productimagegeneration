@@ -126,9 +126,14 @@ class PigFrontendHandler {
 
                         <div class="mockup-right">
                             <div class="mockup-preview-box">
-                                <?php $cat_guide = class_exists('PigR2Storage') ? PigR2Storage::url_for('koleksiyonlar/Kategori-Seçimi.jpeg') : ''; ?>
+                                <?php
+                                // koleksiyonlar/ kökünde adında "profil" geçen rehber görsel (Profil Seçimi.jpeg).
+                                // Ad birebir tutmasa da (boşluk/tire, ç/ş/ı) bulunur.
+                                $cat_guide = class_exists('PigR2Storage') ? PigR2Storage::guide_image_url('profil') : '';
+                                ?>
                                 <img id="category-preview-image" class="preview-img"
-                                    src="<?php echo esc_url($cat_guide); ?>" alt="Kategori Seçimi">
+                                    src="<?php echo esc_url($cat_guide); ?>" alt="Profil Seçimi"
+                                    <?php echo $cat_guide === '' ? 'style="display:none;"' : ''; ?>>
                                 <div id="category-placeholder" style="display:none;"></div>
                             </div>
                         </div>
