@@ -82,6 +82,87 @@ class PigFrontendHandler {
 
     public function add_shortcode() {
         add_shortcode('mockup_creator', [$this, 'render_frontend_interface']);
+        // Butona basınca tam ekran modal açan sürüm: [mockup_creator_button label="..." title="..."]
+        add_shortcode('mockup_creator_button', [$this, 'render_button']);
+    }
+
+    /**
+     * Sayfada sadece bir BUTON gösterir; tıklanınca mockup creator tam ekran modal açılır.
+     * Kendi kendine yeter (inline CSS/JS) — tema/sayfa yapıcıdan bağımsız çalışır.
+     * Aynı sayfada [mockup_creator] ile BİRLİKTE kullanma (ID çakışması olur).
+     * Öznitelikler:
+     *   label  → buton yazısı (varsayılan "Ürün Görseli Oluştur")
+     *   title  → modal başlığı (varsayılan buton yazısıyla aynı)
+     */
+    public function render_button($atts) {
+        $a = shortcode_atts([
+            'label' => 'Ürün Görseli Oluştur',
+            'title' => '',
+        ], $atts, 'mockup_creator_button');
+        $label = $a['label'];
+        $title = $a['title'] !== '' ? $a['title'] : $label;
+
+        $creator = $this->render_frontend_interface();
+
+        ob_start();
+        ?>
+        <button type="button" class="pig-open-btn" onclick="pigOpenCreator()"><?php echo esc_html($label); ?></button>
+
+        <div id="pig-creator-modal" class="pig-creator-modal" role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="pig-creator-backdrop" onclick="pigCloseCreator()"></div>
+            <div class="pig-creator-dialog" role="document">
+                <div class="pig-creator-head">
+                    <span class="pig-creator-title"><?php echo esc_html($title); ?></span>
+                    <button type="button" class="pig-creator-close" onclick="pigCloseCreator()" aria-label="Kapat">&times;</button>
+                </div>
+                <div class="pig-creator-body">
+                    <?php echo $creator; // render_frontend_interface çıktısı (kaçış içeride yapılır) ?>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .pig-open-btn{display:inline-block;padding:14px 28px;font-size:16px;font-weight:600;color:#fff;
+                background:#2271b1;border:none;border-radius:8px;cursor:pointer;line-height:1.2;
+                box-shadow:0 2px 6px rgba(0,0,0,.15);transition:background .15s,transform .05s}
+            .pig-open-btn:hover{background:#185a8f}
+            .pig-open-btn:active{transform:translateY(1px)}
+            .pig-creator-modal{position:fixed;inset:0;z-index:99999;display:none}
+            .pig-creator-modal.open{display:block}
+            .pig-creator-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+            .pig-creator-dialog{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                width:min(960px,94vw);max-height:92vh;display:flex;flex-direction:column;
+                background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+            .pig-creator-head{display:flex;align-items:center;justify-content:space-between;gap:12px;
+                padding:14px 18px;border-bottom:1px solid #eee;background:#fafafa}
+            .pig-creator-title{font-size:16px;font-weight:700;color:#222}
+            .pig-creator-close{background:none;border:none;font-size:28px;line-height:1;cursor:pointer;
+                color:#777;padding:0 4px}
+            .pig-creator-close:hover{color:#222}
+            .pig-creator-body{padding:18px;overflow:auto;-webkit-overflow-scrolling:touch}
+            body.pig-modal-open{overflow:hidden}
+        </style>
+        <script>
+            (function(){
+                if (window.pigOpenCreator) return; // birden fazla shortcode olsa da bir kez tanımla
+                var m = function(){ return document.getElementById('pig-creator-modal'); };
+                window.pigOpenCreator = function(){
+                    var el = m(); if(!el) return;
+                    el.classList.add('open'); el.setAttribute('aria-hidden','false');
+                    document.body.classList.add('pig-modal-open');
+                };
+                window.pigCloseCreator = function(){
+                    var el = m(); if(!el) return;
+                    el.classList.remove('open'); el.setAttribute('aria-hidden','true');
+                    document.body.classList.remove('pig-modal-open');
+                };
+                document.addEventListener('keydown', function(e){
+                    if(e.key === 'Escape'){ window.pigCloseCreator(); }
+                });
+            })();
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
 
